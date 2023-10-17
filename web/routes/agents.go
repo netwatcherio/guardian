@@ -1,9 +1,9 @@
 package routes
 
 /*
-/agents (GET) - List all agents
-/agents (POST) - Create a new agent
-/agents/{agentID} (GET) - Get details for a specific agent
-/agents/{agentID}/stats (GET) - Get general stats for a specific agent
-/agents/{agentID} (DELETE) - Delete a specific agent
+/agents (GET) - List all agents TODO
+/agents (POST) - Create a new agent TODO
+/agents/{agentID} (GET) - Get details for a specific agent TODO
+/agents/{agentID}/stats (GET) - Get general stats for a specific agent TODO
+/agents/{agentID} (DELETE) - Delete a specific agent TODO
 */

@@ -1,9 +1,9 @@
 package routes
 
 /*
-/probes (GET) - List all probes
-/probes (POST) - Create a new check
-/probes/{checkID} (GET) - Get details for a specific check
-/probes/{checkID} (DELETE) - Delete a specific check
-/probes/{checkID}/data (GET) - Get data for a specific check
+/probes (GET) - List all probes TODO
+/probes (POST) - Create a new check TODO
+/probes/{checkID} (GET) - Get details for a specific check TODO
+/probes/{checkID} (DELETE) - Delete a specific check TODO
+/probes/{checkID}/data (GET) - Get data for a specific check TODO
 */

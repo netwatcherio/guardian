@@ -12,6 +12,7 @@ type Probe struct {
 	Pending   time.Time          `json:"pending"bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
 	CreatedAt time.Time          `bson:"createdAt"json:"createdAt"`
 	UpdatedAt time.Time          `bson:"updatedAt"json:"updatedAt"`
+	Config    ProbeConfig        `bson:"config"json:"config"`
 }
 
 type ProbeConfig struct {
@@ -32,22 +33,3 @@ const (
 	ProbeType_SPEEDTEST   ProbeType = "SPEEDTEST"
 	ProbeType_NETWORKINFO ProbeType = "NETINFO"
 )
-
-/*
-Check Struct
-+--------------------------------------------------+
-|                  Probe                            |
-|--------------------------------------------------|
-| ID                   string                       |
-| ProbeID              string                       |
-| Name                 string                       |
-| Type                 string                       |
-| Interval             int                          |
-| Timeout              int                          |
-| Threshold            int                          |
-| Parameters           map[string]interface{}       |
-| Status               string                       |
-| CreatedAt            time.Time                    |
-| UpdatedAt            time.Time                    |
-+--------------------------------------------------+
-*/
