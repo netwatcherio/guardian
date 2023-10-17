@@ -7,6 +7,7 @@ import (
 	"nw-guardian/internal"
 	"nw-guardian/web"
 	"nw-guardian/web/routes"
+	"nw-guardian/web/sockets"
 	"os"
 	"os/signal"
 	"runtime"
@@ -40,17 +41,18 @@ func main() {
 	// TODO load routes for main API (primarily front end, & agent auth?)
 	r := web.NewRouter(database.MongoDB)
 
-	// load routes into memory
-	routes.AddAuthRoutes(r)
-
-	// backend agent routes + websocket
-	routes.AddAgentRoutes(r)
+	loadRoutes(r)
 
 	// fully load and apply routes
 	r.Init()
 	r.Listen(os.Getenv("LISTEN"))
+}
 
-	// TODO load routes / handler for web sockets?
+func loadRoutes(r *web.Router) {
+	sockets.AddAgentRoutes(r) // backend agent routes + websocket handling
+	routes.AddAuthRoutes(r)   // auth routes used for frontend
+	routes.AddSitesRoutes(r)  // sites routes used for frontend
+	routes.AddProbesRoutes(r) // probe routes used for frontend
 }
 
 func handleSignals() {
@@ -60,7 +62,7 @@ func handleSignals() {
 	signal.Notify(signals, syscall.SIGTERM)
 	signal.Notify(signals, syscall.SIGKILL)
 	go func() {
-		for _ = range signals {
+		for range signals {
 			shutdown()
 		}
 	}()
