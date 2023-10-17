@@ -26,23 +26,6 @@ import (
 /agents/{agentID} (GET) - Get details for a specific agent
 /agents/{agentID}/stats (GET) - Get general stats for a specific agent
 /agents/{agentID} (DELETE) - Delete a specific agent
-
-/sites (GET) - List all sites
-/sites/probes/{siteID} - (Get) Gets all probes for specific site
-/sites (POST) - Create a new site
-/sites/{siteID} (GET) - Get details for a specific site
-/sites/{siteID} (DELETE) - Delete a specific site
-/sites/{siteID}/add-member (POST) - Add a member to a specific site
-
-/auth/register (POST) - User registration
-/auth/login (POST) - User login
-/auth/logout (POST) - User logout
-/auth/password-reset (POST) - Request a password reset
-/auth/password-reset/{token} (POST) - Reset the password using a reset token
-/auth/token-refresh (POST) - Refresh a JWT token (if using JWT-based authentication)
-/auth/profile (GET) - Get the user's profile
-/auth/profile (PUT) - Update the user's profile
-/auth/profile/picture (POST) - Upload a profile picture
 */
 
 type Router struct {
@@ -120,7 +103,7 @@ const (
 
 func (r *Router) LoadRoutes() {
 	for _, v := range r.Routes {
-		log.Infof("Loaded route: %s - %s", v.Name, v.Type)
+		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
 		if v.Type == "GET" {
 			r.App.Get(v.Path, func(c *fiber.Ctx) error {
 				return v.Func(c)

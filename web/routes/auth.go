@@ -8,10 +8,22 @@ import (
 	"nw-guardian/web"
 )
 
+/*
+/auth/register (POST) - User registration
+/auth/login (POST) - User login
+/auth/logout (POST) - User logout
+/auth/password-reset (POST) - Request a password reset
+/auth/password-reset/{token} (POST) - Reset the password using a reset token
+/auth/token-refresh (POST) - Refresh a JWT token (if using JWT-based authentication)
+/auth/profile (GET) - Get the user's profile
+/auth/profile (PUT) - Update the user's profile
+/auth/profile/picture (POST) - Upload a profile picture
+*/
+
 func AddAuthRoutes(r *web.Router) {
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Login",
-		Path: "/login",
+		Path: "/auth/login",
 		Func: func(ctx *fiber.Ctx) error {
 			ctx.Accepts("application/json") // "Application/json"
 
@@ -35,7 +47,7 @@ func AddAuthRoutes(r *web.Router) {
 
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Register",
-		Path: "/register",
+		Path: "/auth/register",
 		Func: func(ctx *fiber.Ctx) error {
 			ctx.Accepts("Application/json") // "Application/json"
 
