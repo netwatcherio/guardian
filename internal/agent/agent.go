@@ -16,20 +16,3 @@ type Agent struct {
 	UpdatedAt   time.Time          `bson:"updatedAt"json:"updatedAt"`
 	// pin will be used for "auth" as the password, the ID will stay the same
 }
-
-/*
-Probe Struct
-+--------------------------------------------------+
-|                  Probe                            |
-|--------------------------------------------------|
-| ID                   string                       |
-| SiteID               string                       |
-| Name                 string                       |
-| Type                 string                       |
-| IPAddress            string                       |
-| Port                 int                          |
-| Status               string                       |
-| CreatedAt            time.Time                    |
-| UpdatedAt            time.Time                    |
-+--------------------------------------------------+
-*/

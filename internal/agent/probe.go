@@ -33,3 +33,12 @@ const (
 	ProbeType_SPEEDTEST   ProbeType = "SPEEDTEST"
 	ProbeType_NETWORKINFO ProbeType = "NETINFO"
 )
+
+type ProbeData struct {
+	ID        primitive.ObjectID `json:"id"bson:"_id"`
+	ProbeID   primitive.ObjectID `json:"probe"bson:"probe"`
+	Triggered bool               `json:"triggered"bson:"triggered"`
+	CreatedAt time.Time          `bson:"createdAt"json:"createdAt"`
+	UpdatedAt time.Time          `bson:"updatedAt"json:"updatedAt"`
+	Data      interface{}        `json:"data,omitempty"bson:"data,omitempty"`
+}

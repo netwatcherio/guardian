@@ -1,24 +1,26 @@
-THIS IS A WIP, SEE OLD NETWATCHER-CONTROL FOR OLD INFO
+# NetWatcher.io Guardian
 
-Naming Scheme:
+NetWatcher.io Guardian is a Go application that serves as the backend for managing NetWatcher agents, probes, and probe data. It also handles WebSocket communication to receive data from these agents.
 
-User Interface/Web Interface (UI):
+## Naming Conventions
 
-Project Name: nw-control (revamped control)
-Description: Monitor Hub is the central control center for NetWatcher, offering a comprehensive view of network health and performance across all sites and cloud connections.
-Backend for Frontend (BFF):
+- **Agents:** Agents in the NetWatcher.io Guardian application are software components installed on various networks or controlled by Managed Service Providers (MSPs) at different sites. These agents act as the "eyes and ears" of the network monitoring system, responsible for collecting data and monitoring network conditions.
 
-Project Name: nw-link
-Description: Linker acts as the vital link between the user interface and the agent backend, streamlining data processing and communication for multi-site and MSP network monitoring.
-Backend for Agents (WebSocket):
+- **Probes:** Probes are individual network checks or monitoring tasks initiated and executed by the agents. These tasks can include running network diagnostics such as MTR (My Traceroute), ping tests, or other network-related checks. Probes collect specific data points or measurements about network performance and reliability.
 
-Project Name: nw-guardian
-Description: Guardian ensures secure communication with network agents through WebSockets, safeguarding data integrity and enabling real-time monitoring across diverse networks.
-Network Agents:
+- **Probe Data:** Probe data represents the results and measurements obtained from the various probes executed by the agents. This data includes information about network latency, packet loss, round-trip times, route information (in the case of MTR), and other relevant metrics. Probe data is sent back to the Guardian backend for analysis, storage, and presentation.
 
-Project Name: nw-probes
-Description: Probes are the vigilant agents that conduct MTR, ICMP, speed tests, and service health checks, providing holistic network health insights for both individual company sites and MSPs.
-Overall Software Suite:
+## Prerequisites
 
-Project Name: NetWatcher.io
-Description: NetWatcher.io is the comprehensive suite that encompasses all components, empowering companies and MSPs to monitor, manage, and optimize their networks with cloud providers and beyond.
+Before you begin, ensure you have met the following requirements:
+
+- [Go](https://golang.org/) installed on your system.
+- Proper configuration for database connections and external services.
+
+## Installation
+
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/yourusername/netwatcher-guardian.git
+   cd netwatcher-guardian
