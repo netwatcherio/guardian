@@ -26,8 +26,8 @@ func main() {
 
 	// connect to database
 	database := &internal.DatabaseConnection{
-		URI:    os.Getenv("MAIN_DB"),
-		DB:     "netwatcher",
+		URI:    os.Getenv("MONGO_URI"),
+		DB:     os.Getenv("MAIN_DB"),
 		Logger: log.New(),
 	}
 
@@ -35,9 +35,9 @@ func main() {
 
 	handleSignals()
 
-	// load routes for main API (primarily front end, & agent auth?)
+	// TODO load routes for main API (primarily front end, & agent auth?)
 
-	// load routes / handler for web sockets?
+	// TODO load routes / handler for web sockets?
 }
 
 func handleSignals() {
