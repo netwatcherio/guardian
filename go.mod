@@ -6,6 +6,14 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/sirupsen/logrus v1.9.3
 	go.mongodb.org/mongo-driver v1.12.1
+		github.com/gofiber/fiber/v2 v2.40.1
+    	github.com/gofiber/jwt/v3 v3.3.4
+    	github.com/golang-jwt/jwt/v4 v4.4.2
+    	github.com/ic2hrmk/promtail v0.0.5
+    	github.com/joho/godotenv v1.4.0
+    	github.com/sirupsen/logrus v1.9.0
+    	go.mongodb.org/mongo-driver v1.11.7
+    	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 )
 
 require (
