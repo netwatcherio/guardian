@@ -5,14 +5,6 @@ import (
 	"nw-guardian/web"
 )
 
-/*
-/agents (GET) - List all agents TODO
-/agents (POST) - Create a new agent TODO
-/agents/{agentID} (GET) - Get details for a specific agent TODO
-/agents/{agentID}/stats (GET) - Get general stats for a specific agent TODO
-/agents/{agentID} (DELETE) - Delete a specific agent TODO
-*/
-
 func AddAgentsRoutes(r *web.Router) {
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Get Probes",
@@ -20,7 +12,7 @@ func AddAgentsRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "New Probe",
@@ -28,6 +20,6 @@ func AddAgentsRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "POST",
+		Type: web.RouteType_POST,
 	})
 }

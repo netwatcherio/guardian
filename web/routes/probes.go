@@ -5,14 +5,6 @@ import (
 	"nw-guardian/web"
 )
 
-/*
-/probes/{agentID} (GET) - List all probes TODO
-/probes (POST) - Create a new check TODO
-/probes/{probeID} (GET) - Get details for a specific check TODO
-/probes/{probeID} (DELETE) - Delete a specific check TODO
-/probes/{probeID}/data (GET) - Get data for a specific check TODO
-*/
-
 func AddProbesRoutes(r *web.Router) {
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Get Probes",
@@ -20,7 +12,7 @@ func AddProbesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "New Probe",
@@ -28,7 +20,7 @@ func AddProbesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "POST",
+		Type: web.RouteType_POST,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Get Probe",
@@ -36,7 +28,7 @@ func AddProbesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Delete Probe",
@@ -52,6 +44,6 @@ func AddProbesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 }

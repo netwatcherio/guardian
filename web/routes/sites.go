@@ -5,16 +5,6 @@ import (
 	"nw-guardian/web"
 )
 
-/*
-/sites (GET) - List all sites TODO
-/sites/agents/{siteID} - (Get) Gets all agents for specific site TODO
-/sites (POST) - Create a new site TODO
-/sites/{siteID} (GET) - Get details for a specific site TODO
-/sites/{siteID} (DELETE) - Delete a specific site TODO
-/sites/members/{siteID} (POST) - Add a member to a specific site TODO
-/sites/members/{siteID}/{memberID} (DELETE) - Delete a member to a specific site TODO
-*/
-
 func AddSitesRoutes(r *web.Router) {
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Get Sites",
@@ -22,7 +12,7 @@ func AddSitesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "New Site",
@@ -30,7 +20,7 @@ func AddSitesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "POST",
+		Type: web.RouteType_POST,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Site Agents",
@@ -38,7 +28,7 @@ func AddSitesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Site",
@@ -46,7 +36,7 @@ func AddSitesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Delete Site",
@@ -62,7 +52,7 @@ func AddSitesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "GET",
+		Type: web.RouteType_GET,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Add Member",
@@ -70,7 +60,7 @@ func AddSitesRoutes(r *web.Router) {
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: "POST",
+		Type: web.RouteType_POST,
 	})
 	r.Routes = append(r.Routes, web.Route{
 		Name: "Delete Member",

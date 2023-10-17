@@ -1,8 +1,6 @@
 package web
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -15,20 +13,6 @@ import (
 	"os"
 )
 
-/**
-/probes (GET) - List all probes
-/probes (POST) - Create a new check
-/probes/{checkID} (GET) - Get details for a specific check
-/probes/{checkID} (DELETE) - Delete a specific check
-/probes/{checkID}/data (GET) - Get data for a specific check
-
-/agents (GET) - List all agents
-/agents (POST) - Create a new agent
-/agents/{agentID} (GET) - Get details for a specific agent
-/agents/{agentID}/stats (GET) - Get general stats for a specific agent
-/agents/{agentID} (DELETE) - Delete a specific agent
-*/
-
 type Router struct {
 	App     *fiber.App
 	Session *session.Store
@@ -39,10 +23,17 @@ type Router struct {
 type Route struct {
 	Name   string
 	Path   string
-	Type   string
+	Group  RouteGroup
+	Type   RouteType
 	Func   RouteFunc
 	FuncWS RouteFuncWS
 }
+
+const (
+	RouteGroup_AUTH RouteGroup = "AUTH"
+)
+
+type RouteGroup string
 type RouteFuncWS func(*websocket.Conn) error
 type RouteFunc func(*fiber.Ctx) error
 
@@ -66,8 +57,6 @@ func secretKey() jwt.Keyfunc {
 	}
 }
 
-var privateKey *rsa.PrivateKey
-
 func (r *Router) Init() {
 
 	if os.Getenv("DEBUG") != "" {
@@ -75,46 +64,57 @@ func (r *Router) Init() {
 		r.App.Use(cors.New())
 	}
 
-	var err error
-	rng := rand.Reader
-	privateKey, err = rsa.GenerateKey(rng, 2048)
-	if err != nil {
-		log.Fatalf("rsa.GenerateKey: %v", err)
+	log.Info("Loading all routes...")
+	log.Infof("Found %d route(s).", len(r.Routes))
+	if len(r.Routes) > 0 {
+		r.LoadRoutes(true)
+	} else {
+		log.Error("Failed to no JWT routes. No routes found.")
 	}
 
-	// JWT Middleware
 	r.App.Use(jwtware.New(jwtware.Config{
 		KeyFunc: secretKey(),
 	}))
-
-	log.Info("Loading all routes...")
 	if len(r.Routes) > 0 {
-		log.Infof("Found %d route(s).", len(r.Routes))
-		r.LoadRoutes()
+		r.LoadRoutes(false)
 	} else {
 		log.Error("Failed to load routes. No routes found.")
 	}
+
+	// JWT Middleware TODO use cert or something more "static" in production
 }
 
 type RouteType string
 
 const (
-	RouteType_GET  RouteType = "GET"
-	RouteType_POST RouteType = "POST"
+	RouteType_GET       RouteType = "GET"
+	RouteType_POST      RouteType = "POST"
+	RouteType_WEBSOCKET RouteType = "POST"
 )
 
-func (r *Router) LoadRoutes() {
+func (r *Router) LoadRoutes(noJwt bool) {
 	for _, v := range r.Routes {
+		// skip loading JWT for auth routes? will need to include the logout one otherwise it wouldn't do anything? or we just log out and ignore errors
+		if noJwt {
+			if v.Group != RouteGroup_AUTH {
+				continue
+			}
+		} else {
+			if v.Group == RouteGroup_AUTH {
+				continue
+			}
+		}
+
 		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
-		if v.Type == "GET" {
+		if v.Type == RouteType_GET {
 			r.App.Get(v.Path, func(c *fiber.Ctx) error {
 				return v.Func(c)
 			})
-		} else if v.Type == "POST" {
+		} else if v.Type == RouteType_POST {
 			r.App.Post(v.Path, func(c *fiber.Ctx) error {
 				return v.Func(c)
 			})
-		} else if v.Type == "WEBSOCKET" {
+		} else if v.Type == RouteType_WEBSOCKET {
 			// WebSocket route for authenticated users.
 			r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
 				v.FuncWS(c)

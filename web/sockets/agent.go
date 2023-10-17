@@ -59,6 +59,6 @@ func AddAgentRoutes(r *web.Router) {
 			log.Printf("User %d disconnected from WebSocket", userID)
 			return nil
 		},
-		Type: "WEBSOCKET",
+		Type: web.RouteType_WEBSOCKET,
 	})
 }

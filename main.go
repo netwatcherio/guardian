@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal"
 	"nw-guardian/web"
 	"nw-guardian/web/routes"
-	"nw-guardian/web/sockets"
 	"os"
 	"os/signal"
 	"runtime"
@@ -41,6 +41,8 @@ func main() {
 	// TODO load routes for main API (primarily front end, & agent auth?)
 	r := web.NewRouter(database.MongoDB)
 
+	r.App.Use(logger.New())
+
 	loadRoutes(r)
 
 	// fully load and apply routes
@@ -49,11 +51,11 @@ func main() {
 }
 
 func loadRoutes(r *web.Router) {
-	sockets.AddAgentRoutes(r) // backend agent routes + websocket handling
-	routes.AddAuthRoutes(r)   // auth routes used for frontend
-	routes.AddAgentsRoutes(r) // agent routes used for frontend
+	routes.AddAuthRoutes(r) // auth routes used for frontend
+	/*routes.AddAgentsRoutes(r) // agent routes used for frontend
 	routes.AddSitesRoutes(r)  // sites routes used for frontend
 	routes.AddProbesRoutes(r) // probe routes used for frontend
+	sockets.AddAgentRoutes(r) // backend agent routes + websocket handling*/
 }
 
 func handleSignals() {
