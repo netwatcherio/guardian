@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -36,12 +37,13 @@ type Router struct {
 }
 
 type Route struct {
-	Name string
-	Path string
-	Type string
-	Func RouteFunc
+	Name   string
+	Path   string
+	Type   string
+	Func   RouteFunc
+	FuncWS RouteFuncWS
 }
-
+type RouteFuncWS func(*websocket.Conn) error
 type RouteFunc func(*fiber.Ctx) error
 
 func NewRouter(mongoDB *mongo.Database) *Router {
@@ -112,6 +114,11 @@ func (r *Router) LoadRoutes() {
 			r.App.Post(v.Path, func(c *fiber.Ctx) error {
 				return v.Func(c)
 			})
+		} else if v.Type == "WEBSOCKET" {
+			// WebSocket route for authenticated users.
+			r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
+				v.FuncWS(c)
+			}))
 		}
 	}
 }

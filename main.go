@@ -43,6 +43,9 @@ func main() {
 	// load routes into memory
 	routes.AddAuthRoutes(r)
 
+	// backend agent routes + websocket
+	routes.AddAgentRoutes(r)
+
 	// fully load and apply routes
 	r.Init()
 	r.Listen(os.Getenv("LISTEN"))
