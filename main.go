@@ -5,7 +5,8 @@ import (
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal"
-	"nw-guardian/web/router"
+	"nw-guardian/web"
+	"nw-guardian/web/routes"
 	"os"
 	"os/signal"
 	"runtime"
@@ -37,7 +38,12 @@ func main() {
 	handleSignals()
 
 	// TODO load routes for main API (primarily front end, & agent auth?)
-	r := router.NewRouter(database.MongoDB)
+	r := web.NewRouter(database.MongoDB)
+
+	// load routes into memory
+	routes.AddAuthRoutes(r)
+
+	// fully load and apply routes
 	r.Init()
 	r.Listen(os.Getenv("LISTEN"))
 

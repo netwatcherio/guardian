@@ -1,4 +1,4 @@
-package router
+package web
 
 import (
 	"crypto/rand"
@@ -49,12 +49,22 @@ type Router struct {
 	App     *fiber.App
 	Session *session.Store
 	DB      *mongo.Database
+	Routes  []Route
 }
 
-func NewRouter(store *mongo.Database) *Router {
+type Route struct {
+	Name string
+	Path string
+	Type string
+	Func RouteFunc
+}
+
+type RouteFunc func(*fiber.Ctx) error
+
+func NewRouter(mongoDB *mongo.Database) *Router {
 	router := Router{
 		App: fiber.New(),
-		DB:  store,
+		DB:  mongoDB,
 	}
 	return &router
 }
@@ -87,19 +97,40 @@ func (r *Router) Init() {
 		log.Fatalf("rsa.GenerateKey: %v", err)
 	}
 
-	// Initialize the auth routes before using JWT
-	r.login()
-	r.register()
-
-	log.Info("API")
 	// JWT Middleware
 	r.App.Use(jwtware.New(jwtware.Config{
 		KeyFunc: secretKey(),
 	}))
 
-	log.Info("Loading routes for:")
-	// todo load routes
+	log.Info("Loading all routes...")
+	if len(r.Routes) > 0 {
+		log.Infof("Found %d route(s).", len(r.Routes))
+		r.LoadRoutes()
+	} else {
+		log.Error("Failed to load routes. No routes found.")
+	}
+}
 
+type RouteType string
+
+const (
+	RouteType_GET  RouteType = "GET"
+	RouteType_POST RouteType = "POST"
+)
+
+func (r *Router) LoadRoutes() {
+	for _, v := range r.Routes {
+		log.Infof("Loaded route: %s - %s", v.Name, v.Type)
+		if v.Type == "GET" {
+			r.App.Get(v.Path, func(c *fiber.Ctx) error {
+				return v.Func(c)
+			})
+		} else if v.Type == "POST" {
+			r.App.Post(v.Path, func(c *fiber.Ctx) error {
+				return v.Func(c)
+			})
+		}
+	}
 }
 
 func (r *Router) Listen(host string) {
