@@ -51,6 +51,7 @@ func main() {
 func loadRoutes(r *web.Router) {
 	sockets.AddAgentRoutes(r) // backend agent routes + websocket handling
 	routes.AddAuthRoutes(r)   // auth routes used for frontend
+	routes.AddAgentsRoutes(r) // agent routes used for frontend
 	routes.AddSitesRoutes(r)  // sites routes used for frontend
 	routes.AddProbesRoutes(r) // probe routes used for frontend
 }
