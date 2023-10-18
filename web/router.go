@@ -44,6 +44,9 @@ func (r *Router) Init() {
 
 	r.Routes = append(r.Routes, addRouteAuth(r)...)
 	r.Routes = append(r.Routes, addRouteAgents(r)...)
+	r.Routes = append(r.Routes, addRouteSites(r)...)
+	r.Routes = append(r.Routes, addRouteAgentWS(r)...)
+	r.Routes = append(r.Routes, addRouteProbes(r)...)
 
 	if os.Getenv("DEBUG") != "" {
 		log.Warning("Cross Origin requests allowed (ENV::DEBUG)")

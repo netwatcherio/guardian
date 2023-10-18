@@ -7,8 +7,10 @@ import (
 	"nw-guardian/internal/auth"
 )
 
-func addRouteAgentWS(r *Router) {
-	r.Routes = append(r.Routes, &Route{
+func addRouteAgentWS(r *Router) []*Route {
+	var tempRoutes []*Route
+
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Agent WebSocket",
 		Path: "/agent/ws",
 		JWT:  true,
@@ -61,4 +63,6 @@ func addRouteAgentWS(r *Router) {
 		},
 		Type: RouteType_WEBSOCKET,
 	})
+
+	return tempRoutes
 }

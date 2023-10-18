@@ -4,8 +4,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func addRouteSites(r *Router) {
-	r.Routes = append(r.Routes, &Route{
+func addRouteSites(r *Router) []*Route {
+	var tempRoutes []*Route
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Sites",
 		Path: "/sites",
 		JWT:  true,
@@ -14,7 +15,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "New Site",
 		Path: "/sites",
 		JWT:  true,
@@ -23,7 +24,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: RouteType_POST,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Site Agents",
 		Path: "/sites/agents/:agentID",
 		JWT:  true,
@@ -32,7 +33,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Site",
 		Path: "/sites/:siteID",
 		JWT:  true,
@@ -41,7 +42,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Delete Site",
 		Path: "/sites/:siteID",
 		JWT:  true,
@@ -50,7 +51,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: "DELETE",
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Add Member",
 		Path: "/sites/:siteID",
 		JWT:  true,
@@ -59,7 +60,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Add Member",
 		Path: "/sites/members",
 		JWT:  true,
@@ -68,7 +69,7 @@ func addRouteSites(r *Router) {
 		},
 		Type: RouteType_POST,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Delete Member",
 		Path: "/sites/members/:siteID/:userID",
 		JWT:  true,
@@ -77,4 +78,6 @@ func addRouteSites(r *Router) {
 		},
 		Type: "DELETE",
 	})
+
+	return tempRoutes
 }

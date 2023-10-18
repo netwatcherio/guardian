@@ -4,8 +4,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func addRouteProbes(r *Router) {
-	r.Routes = append(r.Routes, &Route{
+func addRouteProbes(r *Router) []*Route {
+	var tempRoutes []*Route
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Probes",
 		Path: "/probes/:agentID",
 		JWT:  true,
@@ -14,7 +15,7 @@ func addRouteProbes(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "New Probe",
 		Path: "/probes",
 		JWT:  true,
@@ -23,7 +24,7 @@ func addRouteProbes(r *Router) {
 		},
 		Type: RouteType_POST,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Probe",
 		Path: "/probes/:probeID",
 		JWT:  true,
@@ -32,7 +33,7 @@ func addRouteProbes(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Delete Probe",
 		Path: "/probes/:probeID",
 		JWT:  true,
@@ -41,7 +42,7 @@ func addRouteProbes(r *Router) {
 		},
 		Type: "DELETE",
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Probe Data",
 		Path: "/probes/data/:probeID",
 		JWT:  true,
@@ -50,4 +51,5 @@ func addRouteProbes(r *Router) {
 		},
 		Type: RouteType_GET,
 	})
+	return tempRoutes
 }
