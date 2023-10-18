@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -15,7 +16,24 @@ func addRouteSites(r *Router) []*Route {
 		Path: "/sites",
 		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
-			return nil
+			t := ctx.Locals("user").(*jwt.Token)
+			log.Warnf("%v", t)
+			u, err := auth.GetUser(t, r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			getSites, err := sites.GetSites(u.ID, r.DB)
+			if err != nil {
+				return err
+			}
+
+			marshal, err := json.Marshal(getSites)
+			if err != nil {
+				return err
+			}
+
+			return ctx.Send(marshal)
 		},
 		Type: RouteType_GET,
 	})

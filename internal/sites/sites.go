@@ -109,8 +109,39 @@ func (s *Site) AgentCount(db *mongo.Database) (int, error) {
 	return int(count), nil
 }
 
+func GetSites(memberID primitive.ObjectID, db *mongo.Database) ([]Site, error) {
+	// Define a filter to match sites where at least one member has the specified user ID.
+	filter := bson.M{"members": bson.M{"$elemMatch": bson.M{"user": memberID}}}
+
+	// Find the matching sites in the "sites" collection.
+	cursor, err := db.Collection("sites").Find(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var matchingSites []Site
+
+	// Iterate through the cursor and decode each site into a Site struct.
+	for cursor.Next(context.Background()) {
+		var site Site
+		if err := cursor.Decode(&site); err != nil {
+			return nil, err
+		}
+		matchingSites = append(matchingSites, site)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	// Now 'matchingSites' contains an array of sites that have at least one member with the specified user ID.
+
+	return matchingSites, nil
+}
+
 // Get a site from the provided ID
 func (s *Site) Get(db *mongo.Database) error {
+
 	var filter = bson.D{{"_id", s.ID}}
 
 	cursor, err := db.Collection("sites").Find(context.TODO(), filter)
