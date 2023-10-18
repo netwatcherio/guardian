@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,7 +14,7 @@ import (
 
 type Session struct {
 	ID        primitive.ObjectID `json:"item_id"bson:"item_id"`
-	IsAgent   bool               `json:"is_agent"`
+	IsAgent   bool               `json:"is_agent"bson:"is_agent"`
 	SessionID primitive.ObjectID `json:"session_id"bson:"_id"`
 	Expiry    time.Time          `json:"expiry"bson:"expiry"`
 }
@@ -48,7 +48,7 @@ func (s *Session) Create(db *mongo.Database) error {
 
 // FromID returns a user if it finds a matching user with the provided ID
 func (s *Session) FromID(db *mongo.Database) (*Session, error) {
-	var filter = bson.D{{"_id", s.ID}}
+	var filter = bson.D{{"_id", s.SessionID}}
 	cursor, err := db.Collection("sessions").Find(context.TODO(), filter)
 	if err != nil {
 		return nil, err

@@ -2,7 +2,7 @@ package web
 
 import (
 	"github.com/gofiber/contrib/websocket"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal/auth"
 )

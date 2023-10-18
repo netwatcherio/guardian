@@ -6,6 +6,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"nw-guardian/internal/agent"
+	"nw-guardian/internal/users"
 	"time"
 )
 
@@ -14,7 +16,7 @@ type Site struct {
 	Name        string             `json:"name"bson:"name"`
 	Description string             `bson:"description"json:"description"`
 	Location    string             `json:"location"bson:"location"` // logical/physical location
-	Members     []SiteMember       `json:"location"bson:"location"`
+	Members     []SiteMember       `json:"members"bson:"members"`
 	// search for nested member id's when finding sites that belong to a user, is this more db intensive? does it matter? big O?
 	CreatedAt time.Time `bson:"createdAt"json:"createdAt"`
 	UpdatedAt time.Time `bson:"updatedAt"json:"updatedAt"`
@@ -23,7 +25,7 @@ type Site struct {
 func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
 	member := SiteMember{
 		User: owner,
-		Role: SiteMemberRole_READWRITE,
+		Role: SiteMemberRole_OWNER,
 	}
 
 	s.Members = append(s.Members, member)
@@ -45,7 +47,7 @@ func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
 	}
 
 	// todo check this shit
-	/*u := auth.User{ID: member.User}
+	u := users.User{ID: member.User}
 	usr, err := u.FromID(db)
 	if err != nil {
 		return errors.New("unable to get user from id")
@@ -54,14 +56,14 @@ func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
 	err = u.AddSite(s.ID, db)
 	if err != nil {
 		return errors.New("unable to add site to user")
-	}*/
+	}
 
 	return nil
 }
 
 // todo when deleting site remove from user document as well
 
-/*func (s *Site) GetAgents(db *mongo.Database) ([]*agent.Agent, error) {
+func (s *Site) GetAgents(db *mongo.Database) ([]*agent.Agent, error) {
 	var filter = bson.D{{"site", s.ID}}
 
 	cursor, err := db.Collection("agents").Find(context.TODO(), filter)
@@ -93,7 +95,7 @@ func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
 	}
 
 	return agents, nil
-}*/
+}
 
 // AgentCount returns count of agents for a site, or an error if its not successful
 func (s *Site) AgentCount(db *mongo.Database) (int, error) {

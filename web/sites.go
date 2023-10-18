@@ -2,6 +2,10 @@ package web
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
+	log "github.com/sirupsen/logrus"
+	"nw-guardian/internal/auth"
+	"nw-guardian/internal/sites"
 )
 
 func addRouteSites(r *Router) []*Route {
@@ -20,18 +24,26 @@ func addRouteSites(r *Router) []*Route {
 		Path: "/sites",
 		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
-			return nil
+			ctx.Accepts("application/json") // "Application/json"
+			t := ctx.Locals("user").(*jwt.Token)
+			log.Warnf("%v", t)
+			u, err := auth.GetUser(t, r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			s := new(sites.Site)
+			if err := ctx.BodyParser(s); err != nil {
+				return ctx.JSON(err)
+			}
+
+			err = s.Create(u.ID, r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+			return ctx.SendStatus(fiber.StatusOK)
 		},
 		Type: RouteType_POST,
-	})
-	tempRoutes = append(tempRoutes, &Route{
-		Name: "Site Agents",
-		Path: "/sites/agents/:agentID",
-		JWT:  true,
-		Func: func(ctx *fiber.Ctx) error {
-			return nil
-		},
-		Type: RouteType_GET,
 	})
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Site",
@@ -52,8 +64,8 @@ func addRouteSites(r *Router) []*Route {
 		Type: "DELETE",
 	})
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Add Member",
-		Path: "/sites/:siteID",
+		Name: "Get Members",
+		Path: "/sites/members",
 		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil

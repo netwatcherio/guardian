@@ -3,7 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"errors"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 	"nw-guardian/internal/users"
@@ -46,7 +46,7 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 	// Create the Claims
 	claims := jwt.MapClaims{
 		"item_id":    session.ID.Hex(),
-		"session_id": session.ID.Hex(),
+		"session_id": session.SessionID.Hex(),
 	}
 
 	// Create token
@@ -60,7 +60,7 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 
 	out := map[string]any{
 		"token": t,
-		"item":  *user,
+		"data":  *user,
 	}
 
 	bytes, err := json.Marshal(out)
@@ -133,7 +133,7 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 	// todo make this more copiable? don't manually specify the mappedClaims?
 	claims := jwt.MapClaims{
 		"item_id":    session.ID.Hex(),
-		"session_id": session.ID.Hex(),
+		"session_id": session.SessionID.Hex(),
 	}
 
 	// Create token
@@ -147,7 +147,7 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 
 	outMap := map[string]any{
 		"token": t,
-		"item":  *out,
+		"data":  *out,
 	}
 
 	bytes, err := json.Marshal(outMap)
