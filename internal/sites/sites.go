@@ -12,14 +12,14 @@ import (
 )
 
 type Site struct {
-	ID          primitive.ObjectID `json:"id"bson:"_id"`
-	Name        string             `json:"name"bson:"name"`
-	Description string             `bson:"description"json:"description"`
-	Location    string             `json:"location"bson:"location"` // logical/physical location
-	Members     []SiteMember       `json:"members"bson:"members"`
+	ID          primitive.ObjectID `json:"id" bson:"_id"`
+	Name        string             `json:"name" bson:"name"`
+	Description string             `bson:"description" json:"description"`
+	Location    string             `json:"location" bson:"location"` // logical/physical location
+	Members     []SiteMember       `json:"members" bson:"members"`
 	// search for nested member id's when finding sites that belong to a user, is this more db intensive? does it matter? big O?
-	CreatedAt time.Time `bson:"createdAt"json:"createdAt"`
-	UpdatedAt time.Time `bson:"updatedAt"json:"updatedAt"`
+	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
+	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
 func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
