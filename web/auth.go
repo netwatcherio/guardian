@@ -7,8 +7,10 @@ import (
 	"nw-guardian/internal/auth"
 )
 
-func addRouteAuth(r *Router) {
-	r.Routes = append(r.Routes, &Route{
+func addRouteAuth(r *Router) []*Route {
+	var tempRoutes []*Route
+
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Login",
 		Path: "/auth/login",
 		JWT:  false,
@@ -33,7 +35,7 @@ func addRouteAuth(r *Router) {
 		Type: RouteType_POST,
 	})
 
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Register",
 		Path: "/auth/register",
 		JWT:  false,
@@ -56,4 +58,6 @@ func addRouteAuth(r *Router) {
 		},
 		Type: RouteType_POST,
 	})
+
+	return tempRoutes
 }

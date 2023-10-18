@@ -4,23 +4,27 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func addRouteAgents(r *Router) {
-	r.Routes = append(r.Routes, &Route{
+func addRouteAgents(r *Router) []*Route {
+	var tempRoutes []*Route
+
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Agents",
 		Path: "/agents/:agentID",
 		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
-			return nil
+			return ctx.SendString("Get Agents")
 		},
 		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, &Route{
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "New Agents",
 		Path: "/agents",
 		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
-			return nil
+			return ctx.SendString("Get Agents")
 		},
 		Type: RouteType_POST,
 	})
+
+	return tempRoutes
 }

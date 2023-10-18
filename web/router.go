@@ -42,7 +42,8 @@ func secretKey() jwt.Keyfunc {
 
 func (r *Router) Init() {
 
-	initRoutes(r)
+	r.Routes = append(r.Routes, addRouteAuth(r)...)
+	r.Routes = append(r.Routes, addRouteAgents(r)...)
 
 	if os.Getenv("DEBUG") != "" {
 		log.Warning("Cross Origin requests allowed (ENV::DEBUG)")
@@ -70,8 +71,10 @@ func (r *Router) Init() {
 }
 
 func (r *Router) LoadRoutes(JWT bool) {
-	for _, v := range r.Routes {
+	for n, _ := range r.Routes {
 		// skip loading JWT for auth routes? will need to include the logout one otherwise it wouldn't do anything? or we just log out and ignore errors
+
+		v := r.Routes[n]
 
 		if !v.JWT && JWT {
 			log.Warnf("JWT route... SKIP... %s - %s", v.Name, v.Path)
@@ -86,7 +89,7 @@ func (r *Router) LoadRoutes(JWT bool) {
 		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
 		if v.Type == RouteType_GET {
 			r.App.Get(v.Path, func(c *fiber.Ctx) error {
-				return c.SendString("Testing...")
+				return v.Func(c)
 			})
 		} else if v.Type == RouteType_POST {
 			r.App.Post(v.Path, func(c *fiber.Ctx) error {

@@ -21,11 +21,3 @@ const (
 	RouteType_POST      RouteType = "POST"
 	RouteType_WEBSOCKET RouteType = "WEBSOCKET"
 )
-
-func initRoutes(r *Router) {
-	addRouteAuth(r)
-	addRouteSites(r)
-	addRouteAgents(r)
-	addRouteProbes(r)
-	addRouteAgentWS(r)
-}
