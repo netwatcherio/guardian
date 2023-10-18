@@ -7,7 +7,7 @@ import (
 	"nw-guardian/internal/auth"
 )
 
-func AddAgentRoutes(r *Router) {
+func addRouteAgentWS(r *Router) {
 	r.Routes = append(r.Routes, &Route{
 		Name: "Agent WebSocket",
 		Path: "/agent/ws",

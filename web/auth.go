@@ -7,7 +7,7 @@ import (
 	"nw-guardian/internal/auth"
 )
 
-func AddAuthRoutes(r *Router) {
+func addRouteAuth(r *Router) {
 	r.Routes = append(r.Routes, &Route{
 		Name: "Login",
 		Path: "/auth/login",

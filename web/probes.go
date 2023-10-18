@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func AddProbesRoutes(r *Router) {
+func addRouteProbes(r *Router) {
 	r.Routes = append(r.Routes, &Route{
 		Name: "Get Probes",
 		Path: "/probes/:agentID",

@@ -42,7 +42,7 @@ func secretKey() jwt.Keyfunc {
 
 func (r *Router) Init() {
 
-	AddAuthRoutes(r)
+	initRoutes(r)
 
 	if os.Getenv("DEBUG") != "" {
 		log.Warning("Cross Origin requests allowed (ENV::DEBUG)")
@@ -74,39 +74,28 @@ func (r *Router) LoadRoutes(JWT bool) {
 		// skip loading JWT for auth routes? will need to include the logout one otherwise it wouldn't do anything? or we just log out and ignore errors
 
 		if !v.JWT && JWT {
-			log.Warnf("Skipping %s - %s due to being NON-JWT route...", v.Name, v.Path)
-			log.Warnf("Data - JWT: %v noJWT: %v", v.JWT, JWT)
+			log.Warnf("JWT route... SKIP... %s - %s", v.Name, v.Path)
 			continue
 		}
 
 		if v.JWT && !JWT {
-			log.Warnf("Skipping %s - %s due to being JWT route...", v.Name, v.Path)
-			log.Warnf("Data - JWT: %v noJWT: %v", v.JWT, JWT)
+			log.Warnf("not JWT route... SKIP... %s - %s", v.Name, v.Path)
 			continue
 		}
 
 		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
 		if v.Type == RouteType_GET {
-			if err := r.App.Get(v.Path, func(c *fiber.Ctx) error {
+			r.App.Get(v.Path, func(c *fiber.Ctx) error {
 				return c.SendString("Testing...")
-			}); err != nil {
-				// Handle the error here (e.g., log it)
-				log.Errorf("Error setting up GET route: %v", err)
-			}
+			})
 		} else if v.Type == RouteType_POST {
-			if err := r.App.Post(v.Path, func(c *fiber.Ctx) error {
+			r.App.Post(v.Path, func(c *fiber.Ctx) error {
 				return v.Func(c)
-			}); err != nil {
-				// Handle the error here (e.g., log it)
-				log.Errorf("Error setting up POST route: %v", err)
-			}
+			})
 		} else if v.Type == RouteType_WEBSOCKET {
-			if err := r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
+			r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
 				v.FuncWS(c)
-			})); err != nil {
-				// Handle the error here (e.g., log it)
-				log.Errorf("Error setting up WEBSOCKET route: %v", err)
-			}
+			}))
 		}
 
 	}

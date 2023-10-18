@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func AddSitesRoutes(r *Router) {
+func addRouteSites(r *Router) {
 	r.Routes = append(r.Routes, &Route{
 		Name: "Get Sites",
 		Path: "/sites",
