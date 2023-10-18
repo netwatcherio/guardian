@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal"
 	"nw-guardian/web"
-	"nw-guardian/web/routes"
 	"os"
 	"os/signal"
 	"runtime"
@@ -28,7 +27,7 @@ func main() {
 	}
 
 	// connect to database
-	database := &internal.DatabaseConnection{
+	database := internal.DatabaseConnection{
 		URI:    os.Getenv("MONGO_URI"),
 		DB:     os.Getenv("MAIN_DB"),
 		Logger: log.New(),
@@ -43,19 +42,9 @@ func main() {
 
 	r.App.Use(logger.New())
 
-	loadRoutes(r)
-
 	// fully load and apply routes
 	r.Init()
 	r.Listen(os.Getenv("LISTEN"))
-}
-
-func loadRoutes(r *web.Router) {
-	routes.AddAuthRoutes(r) // auth routes used for frontend
-	/*routes.AddAgentsRoutes(r) // agent routes used for frontend
-	routes.AddSitesRoutes(r)  // sites routes used for frontend
-	routes.AddProbesRoutes(r) // probe routes used for frontend
-	sockets.AddAgentRoutes(r) // backend agent routes + websocket handling*/
 }
 
 func handleSignals() {

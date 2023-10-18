@@ -17,32 +17,15 @@ type Router struct {
 	App     *fiber.App
 	Session *session.Store
 	DB      *mongo.Database
-	Routes  []Route
+	Routes  []*Route
 }
-
-type Route struct {
-	Name   string
-	Path   string
-	Group  RouteGroup
-	Type   RouteType
-	Func   RouteFunc
-	FuncWS RouteFuncWS
-}
-
-const (
-	RouteGroup_AUTH RouteGroup = "AUTH"
-)
-
-type RouteGroup string
-type RouteFuncWS func(*websocket.Conn) error
-type RouteFunc func(*fiber.Ctx) error
 
 func NewRouter(mongoDB *mongo.Database) *Router {
-	router := Router{
+	router := &Router{
 		App: fiber.New(),
 		DB:  mongoDB,
 	}
-	return &router
+	return router
 }
 func secretKey() jwt.Keyfunc {
 	return func(t *jwt.Token) (interface{}, error) {
@@ -59,6 +42,8 @@ func secretKey() jwt.Keyfunc {
 
 func (r *Router) Init() {
 
+	AddAuthRoutes(r)
+
 	if os.Getenv("DEBUG") != "" {
 		log.Warning("Cross Origin requests allowed (ENV::DEBUG)")
 		r.App.Use(cors.New())
@@ -67,65 +52,70 @@ func (r *Router) Init() {
 	log.Info("Loading all routes...")
 	log.Infof("Found %d route(s).", len(r.Routes))
 	if len(r.Routes) > 0 {
+		log.Info("Skipping routes that require JWT...")
+		r.LoadRoutes(false)
+
+		log.Info("Enabling JWT Middleware...")
+		r.App.Use(jwtware.New(jwtware.Config{
+			KeyFunc: secretKey(),
+		}))
+
+		log.Info("Loading JWT routes...")
 		r.LoadRoutes(true)
 	} else {
 		log.Error("Failed to no JWT routes. No routes found.")
 	}
 
-	r.App.Use(jwtware.New(jwtware.Config{
-		KeyFunc: secretKey(),
-	}))
-	if len(r.Routes) > 0 {
-		r.LoadRoutes(false)
-	} else {
-		log.Error("Failed to load routes. No routes found.")
-	}
-
 	// JWT Middleware TODO use cert or something more "static" in production
 }
 
-type RouteType string
-
-const (
-	RouteType_GET       RouteType = "GET"
-	RouteType_POST      RouteType = "POST"
-	RouteType_WEBSOCKET RouteType = "POST"
-)
-
-func (r *Router) LoadRoutes(noJwt bool) {
+func (r *Router) LoadRoutes(JWT bool) {
 	for _, v := range r.Routes {
 		// skip loading JWT for auth routes? will need to include the logout one otherwise it wouldn't do anything? or we just log out and ignore errors
-		if noJwt {
-			if v.Group != RouteGroup_AUTH {
-				continue
-			}
-		} else {
-			if v.Group == RouteGroup_AUTH {
-				continue
-			}
+
+		if !v.JWT && JWT {
+			log.Warnf("Skipping %s - %s due to being NON-JWT route...", v.Name, v.Path)
+			log.Warnf("Data - JWT: %v noJWT: %v", v.JWT, JWT)
+			continue
+		}
+
+		if v.JWT && !JWT {
+			log.Warnf("Skipping %s - %s due to being JWT route...", v.Name, v.Path)
+			log.Warnf("Data - JWT: %v noJWT: %v", v.JWT, JWT)
+			continue
 		}
 
 		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
 		if v.Type == RouteType_GET {
-			r.App.Get(v.Path, func(c *fiber.Ctx) error {
-				return v.Func(c)
-			})
+			if err := r.App.Get(v.Path, func(c *fiber.Ctx) error {
+				return c.SendString("Testing...")
+			}); err != nil {
+				// Handle the error here (e.g., log it)
+				log.Errorf("Error setting up GET route: %v", err)
+			}
 		} else if v.Type == RouteType_POST {
-			r.App.Post(v.Path, func(c *fiber.Ctx) error {
+			if err := r.App.Post(v.Path, func(c *fiber.Ctx) error {
 				return v.Func(c)
-			})
+			}); err != nil {
+				// Handle the error here (e.g., log it)
+				log.Errorf("Error setting up POST route: %v", err)
+			}
 		} else if v.Type == RouteType_WEBSOCKET {
-			// WebSocket route for authenticated users.
-			r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
+			if err := r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
 				v.FuncWS(c)
-			}))
+			})); err != nil {
+				// Handle the error here (e.g., log it)
+				log.Errorf("Error setting up WEBSOCKET route: %v", err)
+			}
 		}
+
 	}
 }
 
 func (r *Router) Listen(host string) {
 	err := r.App.Listen(host)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 }

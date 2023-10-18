@@ -1,70 +1,77 @@
-package routes
+package web
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"nw-guardian/web"
 )
 
-func AddSitesRoutes(r *web.Router) {
-	r.Routes = append(r.Routes, web.Route{
+func AddSitesRoutes(r *Router) {
+	r.Routes = append(r.Routes, &Route{
 		Name: "Get Sites",
 		Path: "/sites",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: web.RouteType_GET,
+		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "New Site",
 		Path: "/sites",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: web.RouteType_POST,
+		Type: RouteType_POST,
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Site Agents",
 		Path: "/sites/agents/:agentID",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: web.RouteType_GET,
+		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Site",
 		Path: "/sites/:siteID",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: web.RouteType_GET,
+		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Delete Site",
 		Path: "/sites/:siteID",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
 		Type: "DELETE",
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Add Member",
 		Path: "/sites/:siteID",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: web.RouteType_GET,
+		Type: RouteType_GET,
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Add Member",
 		Path: "/sites/members",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},
-		Type: web.RouteType_POST,
+		Type: RouteType_POST,
 	})
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Delete Member",
 		Path: "/sites/members/:siteID/:userID",
+		JWT:  true,
 		Func: func(ctx *fiber.Ctx) error {
 			return nil
 		},

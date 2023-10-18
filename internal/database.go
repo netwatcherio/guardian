@@ -38,5 +38,6 @@ func (d *DatabaseConnection) Connect() {
 	if err != nil {
 		d.Logger.Fatal(err)
 	}
+	d.MongoDB = d.MongoClient.Database(d.DB)
 	d.Logger.Infof("Successfully connected to database: %s", d.DB)
 }

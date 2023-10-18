@@ -1,17 +1,17 @@
-package sockets
+package web
 
 import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal/auth"
-	"nw-guardian/web"
 )
 
-func AddAgentRoutes(r *web.Router) {
-	r.Routes = append(r.Routes, web.Route{
+func AddAgentRoutes(r *Router) {
+	r.Routes = append(r.Routes, &Route{
 		Name: "Agent WebSocket",
 		Path: "/agent/ws",
+		JWT:  true,
 		FuncWS: func(conn *websocket.Conn) error {
 			// Read the JWT token from the request header.
 
@@ -59,6 +59,6 @@ func AddAgentRoutes(r *web.Router) {
 			log.Printf("User %d disconnected from WebSocket", userID)
 			return nil
 		},
-		Type: web.RouteType_WEBSOCKET,
+		Type: RouteType_WEBSOCKET,
 	})
 }

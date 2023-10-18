@@ -1,18 +1,17 @@
-package routes
+package web
 
 import (
 	"encoding/json"
 	"github.com/gofiber/fiber/v2"
 	"net/http"
 	"nw-guardian/internal/auth"
-	"nw-guardian/web"
 )
 
-func AddAuthRoutes(r *web.Router) {
-	r.Routes = append(r.Routes, web.Route{
-		Name:  "Login",
-		Path:  "/auth/login",
-		Group: web.RouteGroup_AUTH,
+func AddAuthRoutes(r *Router) {
+	r.Routes = append(r.Routes, &Route{
+		Name: "Login",
+		Path: "/auth/login",
+		JWT:  false,
 		Func: func(ctx *fiber.Ctx) error {
 			ctx.Accepts("application/json") // "Application/json"
 
@@ -31,12 +30,13 @@ func AddAuthRoutes(r *web.Router) {
 
 			return ctx.Send([]byte(t))
 		},
-		Type: web.RouteType_POST,
+		Type: RouteType_POST,
 	})
 
-	r.Routes = append(r.Routes, web.Route{
+	r.Routes = append(r.Routes, &Route{
 		Name: "Register",
 		Path: "/auth/register",
+		JWT:  false,
 		Func: func(ctx *fiber.Ctx) error {
 			ctx.Accepts("Application/json") // "Application/json"
 
@@ -54,6 +54,6 @@ func AddAuthRoutes(r *web.Router) {
 
 			return ctx.Send([]byte(t))
 		},
-		Type: web.RouteType_POST,
+		Type: RouteType_POST,
 	})
 }
