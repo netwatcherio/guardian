@@ -1,17 +1,15 @@
 package web
 
 import (
-	"github.com/gofiber/contrib/websocket"
-	"github.com/gofiber/fiber/v2"
+	"github.com/kataras/iris/v12"
 )
 
 type Route struct {
-	Name   string
-	Path   string
-	JWT    bool
-	Type   RouteType
-	Func   func(*fiber.Ctx) error
-	FuncWS func(*websocket.Conn) error
+	Name string
+	Path string
+	JWT  bool
+	Type RouteType
+	Func func(ctx iris.Context) error
 }
 
 type RouteType string

@@ -1,8 +1,7 @@
 package web
 
 import (
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
+	"github.com/kataras/iris/v12"
 	"net/http"
 	"nw-guardian/internal/auth"
 )
@@ -14,23 +13,27 @@ func addRouteAuth(r *Router) []*Route {
 		Name: "Login",
 		Path: "/auth/login",
 		JWT:  false,
-		Func: func(ctx *fiber.Ctx) error {
-			ctx.Accepts("application/json") // "Application/json"
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
 
 			var l auth.Login
-			err := json.Unmarshal(ctx.Body(), &l)
+			err := ctx.ReadJSON(&l)
 			if err != nil {
-				ctx.Status(http.StatusBadRequest)
+				ctx.StatusCode(http.StatusBadRequest)
 				return nil
 			}
 
 			t, err := l.Login(r.DB)
 			if err != nil {
-				ctx.Status(http.StatusUnauthorized)
+				ctx.StatusCode(http.StatusUnauthorized)
 				return nil
 			}
+			_, err = ctx.Write([]byte(t))
+			if err != nil {
+				return err
+			}
+			return nil
 
-			return ctx.Send([]byte(t))
 		},
 		Type: RouteType_POST,
 	})
@@ -39,22 +42,26 @@ func addRouteAuth(r *Router) []*Route {
 		Name: "Register",
 		Path: "/auth/register",
 		JWT:  false,
-		Func: func(ctx *fiber.Ctx) error {
-			ctx.Accepts("Application/json") // "Application/json"
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("Application/json") // "Application/json"
 
 			var reg auth.Register
-			err := json.Unmarshal(ctx.Body(), &reg)
+			err := ctx.ReadJSON(&reg)
 			if err != nil {
-				ctx.Status(http.StatusBadRequest)
+				ctx.StatusCode(http.StatusBadRequest)
 				return err
 			}
 			t, err := reg.Register(r.DB)
 			if err != nil {
-				ctx.Status(http.StatusConflict)
+				ctx.StatusCode(http.StatusConflict)
+				return err
+			}
+			_, err = ctx.Write([]byte(t))
+			if err != nil {
 				return err
 			}
 
-			return ctx.Send([]byte(t))
+			return nil
 		},
 		Type: RouteType_POST,
 	})

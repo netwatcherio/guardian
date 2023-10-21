@@ -1,43 +1,23 @@
 package web
 
 import (
-	"fmt"
-	jwtware "github.com/gofiber/contrib/jwt"
-	"github.com/gofiber/contrib/websocket"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/session"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
-	"os"
 )
 
 type Router struct {
-	App     *fiber.App
-	Session *session.Store
-	DB      *mongo.Database
-	Routes  []*Route
+	App    *iris.Application
+	DB     *mongo.Database
+	Routes []*Route
 }
 
 func NewRouter(mongoDB *mongo.Database) *Router {
 	router := &Router{
-		App: fiber.New(),
+		App: iris.New(),
 		DB:  mongoDB,
 	}
 	return router
-}
-func secretKey() jwt.Keyfunc {
-	return func(t *jwt.Token) (interface{}, error) {
-		// Always check the signing method
-		if t.Method.Alg() != jwtware.HS256 {
-			return nil, fmt.Errorf("unexpected jwt signing method=%v", t.Header["alg"])
-		}
-
-		signingKey := os.Getenv("KEY")
-
-		return []byte(signingKey), nil
-	}
 }
 
 func (r *Router) Init() {
@@ -48,11 +28,6 @@ func (r *Router) Init() {
 	r.Routes = append(r.Routes, addRouteAgentWS(r)...)
 	r.Routes = append(r.Routes, addRouteProbes(r)...)
 
-	if os.Getenv("DEBUG") != "" {
-		log.Warning("Cross Origin requests allowed (ENV::DEBUG)")
-		r.App.Use(cors.New())
-	}
-
 	log.Info("Loading all routes...")
 	log.Infof("Found %d route(s).", len(r.Routes))
 	if len(r.Routes) > 0 {
@@ -60,9 +35,8 @@ func (r *Router) Init() {
 		r.LoadRoutes(false)
 
 		log.Info("Enabling JWT Middleware...")
-		r.App.Use(jwtware.New(jwtware.Config{
-			KeyFunc: secretKey(),
-		}))
+		// TODO JWT middlewear
+		r.App.Use(VerifySession())
 
 		log.Info("Loading JWT routes...")
 		r.LoadRoutes(true)
@@ -91,17 +65,17 @@ func (r *Router) LoadRoutes(JWT bool) {
 
 		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
 		if v.Type == RouteType_GET {
-			r.App.Get(v.Path, func(c *fiber.Ctx) error {
-				return v.Func(c)
+			r.App.Get(v.Path, func(ctx iris.Context) {
+				v.Func(ctx)
 			})
 		} else if v.Type == RouteType_POST {
-			r.App.Post(v.Path, func(c *fiber.Ctx) error {
-				return v.Func(c)
+			r.App.Post(v.Path, func(ctx iris.Context) {
+				v.Func(ctx)
 			})
 		} else if v.Type == RouteType_WEBSOCKET {
-			r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
-				v.FuncWS(c)
-			}))
+			/*r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {
+				log.Info("SWITCH TO HTTP/2")
+			}))*/
 		}
 
 	}

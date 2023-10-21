@@ -109,7 +109,7 @@ func (s *Site) AgentCount(db *mongo.Database) (int, error) {
 	return int(count), nil
 }
 
-func GetSites(memberID primitive.ObjectID, db *mongo.Database) ([]Site, error) {
+func GetSitesForMember(memberID primitive.ObjectID, db *mongo.Database) ([]Site, error) {
 	// Define a filter to match sites where at least one member has the specified user ID.
 	filter := bson.M{"members": bson.M{"$elemMatch": bson.M{"user": memberID}}}
 

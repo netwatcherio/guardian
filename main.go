@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
+	"github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal"
 	"nw-guardian/web"
@@ -40,7 +40,27 @@ func main() {
 	// TODO load routes for main API (primarily front end, & agent auth?)
 	r := web.NewRouter(database.MongoDB)
 
-	r.App.Use(logger.New())
+	crs := func(ctx iris.Context) {
+		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.Header("Access-Control-Allow-Credentials", "true")
+
+		if ctx.Method() == iris.MethodOptions {
+			ctx.Header("Access-Control-Methods",
+				"POST, PUT, PATCH, DELETE, OPTIONS")
+
+			ctx.Header("Access-Control-Allow-Headers",
+				"Access-Control-Allow-Origin,Content-Type,*")
+
+			ctx.Header("Access-Control-Max-Age",
+				"86400")
+
+			ctx.StatusCode(iris.StatusNoContent)
+			return
+		}
+
+		ctx.Next()
+	}
+	r.App.UseRouter(crs)
 
 	// fully load and apply routes
 	r.Init()
