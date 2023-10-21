@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -35,6 +36,43 @@ func GeneratePin(max int) string {
 		b[i] = table[int(b[i])%len(table)]
 	}
 	return string(b)
+}
+
+func (a *Agent) Get(db *mongo.Database) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	cursor, err := db.Collection("agents").Find(context.TODO(), filter)
+	if err != nil {
+		log.Errorf("error searching database for agent: %s", err)
+		return err
+	}
+	var results []bson.D
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		log.Errorf("error cursoring through agents: %s", err)
+		return err
+	}
+
+	if len(results) > 1 {
+		return errors.New("multiple agents match when getting using id") // edge case??
+	}
+
+	if len(results) == 0 {
+		return errors.New("no agents match when getting using id")
+	}
+
+	doc, err := bson.Marshal(&results[0])
+	if err != nil {
+		log.Errorf("1 %s", err)
+		return err
+	}
+
+	err = bson.Unmarshal(doc, &a)
+	if err != nil {
+		log.Errorf("2 %s", err)
+		return err
+	}
+
+	return nil
 }
 
 func (a *Agent) Create(db *mongo.Database) error {

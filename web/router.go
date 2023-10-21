@@ -25,7 +25,7 @@ func (r *Router) Init() {
 	r.Routes = append(r.Routes, addRouteAuth(r)...)
 	r.Routes = append(r.Routes, addRouteAgents(r)...)
 	r.Routes = append(r.Routes, addRouteSites(r)...)
-	r.Routes = append(r.Routes, addRouteAgentWS(r)...)
+	r.Routes = append(r.Routes, addRouteAgentAPI(r)...)
 	r.Routes = append(r.Routes, addRouteProbes(r)...)
 
 	log.Info("Loading all routes...")
