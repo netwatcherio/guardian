@@ -1,7 +1,14 @@
 package agent
 
 import (
+	"context"
+	"crypto/rand"
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"io"
 	"time"
 )
 
@@ -15,4 +22,46 @@ type Agent struct {
 	CreatedAt   time.Time          `bson:"createdAt"json:"createdAt"`
 	UpdatedAt   time.Time          `bson:"updatedAt"json:"updatedAt"`
 	// pin will be used for "auth" as the password, the ID will stay the same
+}
+
+func GeneratePin(max int) string {
+	var table = [...]byte{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}
+	b := make([]byte, max)
+	n, err := io.ReadAtLeast(rand.Reader, b, max)
+	if n != max {
+		panic(err)
+	}
+	for i := 0; i < len(b); i++ {
+		b[i] = table[int(b[i])%len(table)]
+	}
+	return string(b)
+}
+
+func (a *Agent) Create(db *mongo.Database) error {
+	// todo handle to check if agent id is set and all that...
+	a.Pin = GeneratePin(9)
+	a.ID = primitive.NewObjectID()
+	a.Initialized = false
+	a.CreatedAt = time.Now()
+	a.UpdatedAt = time.Now()
+
+	mar, err := bson.Marshal(a)
+	if err != nil {
+		log.Errorf("error marshalling agent data when creating: %s", err)
+		return err
+	}
+	var b *bson.D
+	err = bson.Unmarshal(mar, &b)
+	if err != nil {
+		log.Errorf("error unmarhsalling agent data when creating: %s", err)
+		return err
+	}
+	result, err := db.Collection("agents").InsertOne(context.TODO(), b)
+	if err != nil {
+		log.Errorf("error inserting to database: %s", err)
+		return err
+	}
+
+	fmt.Printf("created agent with id: %v\n", result.InsertedID)
+	return nil
 }

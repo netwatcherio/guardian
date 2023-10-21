@@ -3,8 +3,9 @@ package web
 import (
 	"encoding/json"
 	"github.com/kataras/iris/v12"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
-	"nw-guardian/internal/sites"
+	"nw-guardian/internal/site"
 )
 
 func addRouteSites(r *Router) []*Route {
@@ -21,7 +22,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			getSites, err := sites.GetSitesForMember(t.ID, r.DB)
+			getSites, err := site.GetSitesForMember(t.ID, r.DB)
 			if err != nil {
 				return err
 			}
@@ -50,7 +51,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := new(sites.Site)
+			s := new(site.Site)
 			err = ctx.ReadJSON(&s)
 			if err != nil {
 				return err
@@ -70,6 +71,27 @@ func addRouteSites(r *Router) []*Route {
 		Path: "/sites/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := site.Site{ID: siteId}
+			err = s.Get(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+			ctx.JSON(s)
 			return nil
 		},
 		Type: RouteType_GET,

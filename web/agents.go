@@ -2,9 +2,11 @@ package web
 
 import (
 	"github.com/kataras/iris/v12"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
-	"nw-guardian/internal/sites"
+	"nw-guardian/internal/agent"
+	"nw-guardian/internal/site"
 )
 
 func addRouteAgents(r *Router) []*Route {
@@ -25,13 +27,13 @@ func addRouteAgents(r *Router) []*Route {
 
 			params := ctx.Params()
 
-			aId, err := primitive.ObjectIDFromHex(params.Get("siteID"))
+			aId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
 			if err != nil {
 				ctx.StatusCode(http.StatusInternalServerError)
 				return nil
 			}
 
-			a := sites.Site{ID: aId}
+			a := site.Site{ID: aId}
 			err = a.Get(r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusInternalServerError)
@@ -53,6 +55,43 @@ func addRouteAgents(r *Router) []*Route {
 		Path: "/agents/new/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			sId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := site.Site{ID: sId}
+			err = s.Get(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			cAgent := new(agent.Agent)
+			ctx.ReadJSON(&cAgent)
+
+			cAgent.Site = s.ID
+
+			err = cAgent.Create(r.DB)
+			if err != nil {
+				log.Error(err)
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			ctx.StatusCode(http.StatusOK)
+
 			return nil
 		},
 		Type: RouteType_POST,
