@@ -22,13 +22,12 @@ type Probe struct {
 }
 
 type ProbeConfig struct {
-	Type     ProbeType `json:"type" bson:"type"`
 	Target   string    `json:"target" bson:"target"`
 	Duration int       `json:"duration" bson:"duration"`
 	Count    int       `json:"count" bson:"count"`
 	Interval int       `json:"interval" bson:"interval"`
-	Server   bool      `bson:"server"json:"server"`
-	Pending  time.Time `json:"pending"bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
+	Server   bool      `bson:"server" json:"server"`
+	Pending  time.Time `json:"pending" bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
 }
 
 type ProbeType string
