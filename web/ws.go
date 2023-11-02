@@ -1,10 +1,15 @@
 package web
 
 import (
+	"errors"
+	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/websocket"
 	"log"
 	"net/http"
+	"nw-guardian/internal/auth"
+	"os"
+	"strings"
 	// Used when "enableJWT" constant is true:
 )
 
@@ -20,16 +25,34 @@ func addWebSocketServer(r *Router) error {
 
 	websocketServer.OnConnect = func(c *websocket.Conn) error {
 		ctx := websocket.GetContext(c)
-		t := GetClaims(ctx)
-		_, err := t.FromID(r.DB)
+
+		tokenString := ctx.GetHeader("Authorization")
+		if tokenString == "" {
+			ctx.StatusCode(http.StatusUnauthorized)
+			return errors.New("unauthorized. No token")
+		}
+
+		newToken := strings.ReplaceAll(tokenString, "Bearer ", "")
+
+		token, err := jwt.Parse(newToken, func(token *jwt.Token) (interface{}, error) {
+			// Here you should provide your JWT secret key
+			return []byte(os.Getenv("KEY")), nil
+		})
+
+		if err != nil || !token.Valid {
+			ctx.StatusCode(http.StatusUnauthorized)
+			return errors.New("unauthorized. No token")
+		}
+
+		// todo change to get agent from token for auth & agent login to generate token??
+		agent, err := auth.GetUser(token, r.DB)
 		if err != nil {
-			ctx.StatusCode(http.StatusInternalServerError)
-			return err
+			ctx.StatusCode(http.StatusUnauthorized)
+			return errors.New("unauthorized. invalid agent token.")
 		}
 
 		log.Printf("This is an authenticated request\n")
-		log.Printf("Session ID:")
-		log.Printf("%#+v\n", t.SessionID)
+		log.Printf("Agent: %v", agent.ID)
 
 		log.Printf("[%s] connected to the server", c.ID())
 
