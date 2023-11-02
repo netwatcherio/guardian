@@ -29,7 +29,7 @@ func addWebSocketServer(r *Router) error {
 		tokenString := ctx.GetHeader("Authorization")
 		if tokenString == "" {
 			ctx.StatusCode(http.StatusUnauthorized)
-			return errors.New("unauthorized. No token")
+			return errors.New("unauthorized. no token")
 		}
 
 		newToken := strings.ReplaceAll(tokenString, "Bearer ", "")
@@ -41,14 +41,14 @@ func addWebSocketServer(r *Router) error {
 
 		if err != nil || !token.Valid {
 			ctx.StatusCode(http.StatusUnauthorized)
-			return errors.New("unauthorized. No token")
+			return errors.New("unauthorized. invalid token")
 		}
 
 		// todo change to get agent from token for auth & agent login to generate token??
 		agent, err := auth.GetUser(token, r.DB)
 		if err != nil {
 			ctx.StatusCode(http.StatusUnauthorized)
-			return errors.New("unauthorized. invalid agent token.")
+			return errors.New("unauthorized. invalid agent token")
 		}
 
 		log.Printf("This is an authenticated request\n")
