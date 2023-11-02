@@ -41,7 +41,10 @@ func addRouteProbes(r *Router) []*Route {
 			}
 
 			log.Info(check)
-			ctx.JSON(cc)
+			err = ctx.JSON(cc)
+			if err != nil {
+				return err
+			}
 
 			return nil
 		},

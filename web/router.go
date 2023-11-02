@@ -2,14 +2,17 @@ package web
 
 import (
 	"github.com/kataras/iris/v12"
+	"github.com/kataras/iris/v12/websocket"
+	"github.com/kataras/neffos"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Router struct {
-	App    *iris.Application
-	DB     *mongo.Database
-	Routes []*Route
+	App             *iris.Application
+	DB              *mongo.Database
+	Routes          []*Route
+	WebSocketServer *neffos.Server
 }
 
 func NewRouter(mongoDB *mongo.Database) *Router {
@@ -21,6 +24,14 @@ func NewRouter(mongoDB *mongo.Database) *Router {
 }
 
 func (r *Router) Init() {
+
+	err := addWebSocketServer(r)
+	if err != nil {
+		log.Error(err)
+	}
+
+	r.App.Get("/agent_ws", websocket.Handler(r.WebSocketServer))
+	log.Info("Loading Agent Websocket Route...")
 
 	r.Routes = append(r.Routes, addRouteAuth(r)...)
 	r.Routes = append(r.Routes, addRouteAgents(r)...)
