@@ -13,10 +13,6 @@ import (
 	// Used when "enableJWT" constant is true:
 )
 
-// values should match with the client sides as well.
-const enableJWT = true
-const namespace = "default"
-
 func addWebSocketServer(r *Router) error {
 
 	websocketServer := websocket.New(
@@ -45,14 +41,14 @@ func addWebSocketServer(r *Router) error {
 		}
 
 		// todo change to get agent from token for auth & agent login to generate token??
-		agent, err := auth.GetUser(token, r.DB)
+		agent, err := auth.GetAgent(token, r.DB)
 		if err != nil {
 			ctx.StatusCode(http.StatusUnauthorized)
 			return errors.New("unauthorized. invalid agent token")
 		}
 
 		log.Printf("This is an authenticated request\n")
-		log.Printf("Agent: %v", agent.ID)
+		log.Printf("Agent: %v", agent.ID.String())
 
 		log.Printf("[%s] connected to the server", c.ID())
 
@@ -66,7 +62,7 @@ func addWebSocketServer(r *Router) error {
 
 func getWebsocketEvents() websocket.Namespaces {
 	serverEvents := websocket.Namespaces{
-		namespace: websocket.Events{
+		"agent": websocket.Events{
 			websocket.OnNamespaceConnected: func(nsConn *websocket.NSConn, msg websocket.Message) error {
 				// with `websocket.GetContext` you can retrieve the Iris' `Context`.
 				ctx := websocket.GetContext(nsConn.Conn)
@@ -77,10 +73,11 @@ func getWebsocketEvents() websocket.Namespaces {
 				return nil
 			},
 			websocket.OnNamespaceDisconnect: func(nsConn *websocket.NSConn, msg websocket.Message) error {
+				// todo update agent status to be offline??
 				log.Printf("[%s] disconnected from namespace [%s]", nsConn, msg.Namespace)
 				return nil
 			},
-			"chat": func(nsConn *websocket.NSConn, msg websocket.Message) error {
+			"probe_get": func(nsConn *websocket.NSConn, msg websocket.Message) error {
 				// room.String() returns -> NSConn.String() returns -> Conn.String() returns -> Conn.ID()
 				log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
 

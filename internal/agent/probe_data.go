@@ -52,7 +52,7 @@ func (pd *ProbeData) Parse() interface{} {
 // GetData requires a checkrequest to be sent, if agent id is set,
 // it will require the type to be sent in check, otherwise
 // the check id will be used
-func (c *Probe) GetData(req CheckRequest, db *mongo.Database) ([]*ProbeData, error) {
+func (c *Probe) GetData(req ProbeDataRequest, db *mongo.Database) ([]*ProbeData, error) {
 	opts := options.Find().SetLimit(req.Limit)
 
 	var filter = bson.D{{"probe", c.ID}}

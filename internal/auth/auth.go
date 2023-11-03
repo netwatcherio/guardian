@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
+	"nw-guardian/internal/agent"
 	"nw-guardian/internal/users"
 	"os"
 	"time"
@@ -151,6 +153,75 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 	}
 
 	bytes, err := json.Marshal(outMap)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
+
+type AgentLogin struct {
+	PIN string `json:"pin"`
+	ID  string `json:"id"`
+}
+
+// AgentLogin returns error on fail, nil on success
+func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
+	if r.PIN == "" {
+		return "", errors.New("invalid pin")
+	}
+
+	if r.ID == "" {
+		return "", errors.New("invalid id")
+	}
+
+	aId, err := primitive.ObjectIDFromHex(r.ID)
+
+	if err != nil {
+		return "", err
+	}
+
+	u := agent.Agent{ID: aId}
+	err = u.Get(db)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Pin != r.PIN {
+		return "", errors.New("pins do not match")
+	}
+
+	session := Session{
+		ID:      u.ID,
+		IsAgent: true,
+	}
+
+	err = session.Create(db)
+	if err != nil {
+		return "", err
+	}
+
+	// Create the Claims
+	claims := jwt.MapClaims{
+		"item_id":    session.ID.Hex(),
+		"session_id": session.SessionID.Hex(),
+	}
+
+	// Create token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Generate encoded token and send it as response.
+	t, err := token.SignedString([]byte(os.Getenv("KEY")))
+	if err != nil {
+		return "", err
+	}
+
+	out := map[string]any{
+		"token": t,
+		"data":  u,
+	}
+
+	bytes, err := json.Marshal(out)
 	if err != nil {
 		return "", err
 	}

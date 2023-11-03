@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"nw-guardian/internal/agent"
 	"nw-guardian/internal/users"
 	"time"
 )
@@ -79,6 +80,49 @@ func (s *Session) FromID(db *mongo.Database) (*Session, error) {
 	}
 
 	return session, nil
+}
+
+// GetAgent get the user from the token, otherwise return error
+func GetAgent(token *jwt.Token, db *mongo.Database) (*agent.Agent, error) {
+	claims := token.Claims.(jwt.MapClaims)
+	itemId := claims["item_id"].(string)
+	sessionId := claims["session_id"].(string)
+
+	sId, err := primitive.ObjectIDFromHex(sessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	session := Session{SessionID: sId}
+	s, err := session.FromID(db)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.IsAgent {
+		return nil, errors.New("session is not valid agent session")
+	}
+
+	if time.Now().After(s.Expiry) {
+		return nil, errors.New("token expired")
+	}
+
+	iId, err := primitive.ObjectIDFromHex(itemId)
+	if err != nil {
+		return nil, err
+	}
+
+	if iId != s.ID {
+		return nil, errors.New("item id mismatch")
+	}
+
+	a := &agent.Agent{ID: s.ID}
+	err = a.Get(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return a, nil
 }
 
 // GetUser get the user from the token, otherwise return error

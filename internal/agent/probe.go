@@ -40,7 +40,7 @@ const (
 	ProbeType_NETWORKINFO ProbeType = "NETINFO"
 )
 
-type CheckRequest struct {
+type ProbeDataRequest struct {
 	Limit          int64     `json:"limit"`
 	StartTimestamp time.Time `json:"start_timestamp"`
 	EndTimestamp   time.Time `json:"end_timestamp"`
