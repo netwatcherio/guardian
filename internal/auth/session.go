@@ -18,6 +18,7 @@ type Session struct {
 	IsAgent   bool               `json:"is_agent"bson:"is_agent"`
 	SessionID primitive.ObjectID `json:"session_id"bson:"_id"`
 	Expiry    time.Time          `json:"expiry"bson:"expiry"`
+	WSConn    string             `json:"ws_conn"bson:"ws_conn"`
 }
 
 // Create a session from user id, and include expiry, return error if fails
@@ -125,6 +126,17 @@ func GetAgent(token *jwt.Token, db *mongo.Database) (*agent.Agent, error) {
 	return a, nil
 }
 
+func GetSessionID(token *jwt.Token) (primitive.ObjectID, error) {
+	claims := token.Claims.(jwt.MapClaims)
+	sessionId := claims["session_id"].(string)
+	sId, err := primitive.ObjectIDFromHex(sessionId)
+	if err != nil {
+		return primitive.NewObjectID(), err
+	}
+
+	return sId, nil
+}
+
 // GetUser get the user from the token, otherwise return error
 func GetUser(token *jwt.Token, db *mongo.Database) (*users.User, error) {
 	claims := token.Claims.(jwt.MapClaims)
@@ -162,4 +174,52 @@ func GetUser(token *jwt.Token, db *mongo.Database) (*users.User, error) {
 	}
 
 	return fromID, nil
+}
+
+func (s *Session) UpdateConnWS(db *mongo.Database) error {
+	var filter = bson.D{{"_id", s.SessionID}}
+
+	update := bson.D{{"$set", bson.D{{"ws_conn", s.WSConn}}}}
+
+	_, err := db.Collection("sessions").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+	log.Infof("Updated WSConn for Agent: %s WS: %s", s.ID, s.SessionID)
+
+	return nil
+}
+
+func GetSessionFromWSConn(wsConn string, db *mongo.Database) (*Session, error) {
+	var filter = bson.D{{"ws_conn", wsConn}}
+	cursor, err := db.Collection("sessions").Find(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+	var results []bson.D
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		return nil, err
+	}
+
+	if len(results) < 1 {
+		return nil, errors.New("no session found")
+	}
+
+	if len(results) > 1 {
+		return nil, errors.New("multiple sessions found")
+	}
+
+	doc, err := bson.Marshal(&results[0])
+	if err != nil {
+		return nil, errors.New("something went wrong")
+	}
+
+	var session *Session
+	err = bson.Unmarshal(doc, &session)
+	if err != nil {
+		log.Errorf("2 %s", err)
+		return nil, errors.New("something went wrong unmarshalling session data")
+	}
+
+	return session, nil
 }

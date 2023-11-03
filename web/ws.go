@@ -1,23 +1,24 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/websocket"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
+	"nw-guardian/internal/agent"
 	"nw-guardian/internal/auth"
 	"os"
 	"strings"
-	// Used when "enableJWT" constant is true:
 )
 
 func addWebSocketServer(r *Router) error {
 
 	websocketServer := websocket.New(
 		websocket.DefaultGorillaUpgrader, /* DefaultGobwasUpgrader can be used too. */
-		getWebsocketEvents())
+		getWebsocketEvents(r))
 
 	websocketServer.OnConnect = func(c *websocket.Conn) error {
 		ctx := websocket.GetContext(c)
@@ -52,6 +53,17 @@ func addWebSocketServer(r *Router) error {
 
 		log.Printf("[%s] connected to the server", c.ID())
 
+		id, err := auth.GetSessionID(token)
+		if err != nil {
+			return err
+		}
+
+		ss := auth.Session{ID: agent.ID, SessionID: id, WSConn: c.ID()}
+		err = ss.UpdateConnWS(r.DB)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -60,7 +72,7 @@ func addWebSocketServer(r *Router) error {
 	return nil
 }
 
-func getWebsocketEvents() websocket.Namespaces {
+func getWebsocketEvents(r *Router) websocket.Namespaces {
 	serverEvents := websocket.Namespaces{
 		"agent": websocket.Events{
 			websocket.OnNamespaceConnected: func(nsConn *websocket.NSConn, msg websocket.Message) error {
@@ -81,10 +93,31 @@ func getWebsocketEvents() websocket.Namespaces {
 				// room.String() returns -> NSConn.String() returns -> Conn.String() returns -> Conn.ID()
 				log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
 
+				session, err := auth.GetSessionFromWSConn(nsConn.String(), r.DB)
+				if err != nil {
+					return err
+				}
+
+				a := agent.Agent{ID: session.ID}
+				err = a.Get(r.DB)
+				if err != nil {
+					return err
+				}
+
+				probe := agent.Probe{Agent: session.ID}
+				probes, _ := probe.GetAll(r.DB)
+
+				marshal, err := json.Marshal(probes)
+				if err != nil {
+					return err
+				}
+
+				nsConn.Emit("probe_get", marshal)
+
 				// Write message back to the client message owner with:
 				// nsConn.Emit("chat", msg)
 				// Write message to all except this client with:
-				nsConn.Conn.Server().Broadcast(nsConn, msg)
+				//nsConn.Conn.Server().Broadcast(nsConn, msg)
 				return nil
 			},
 		},
