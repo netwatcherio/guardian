@@ -120,6 +120,37 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 				//nsConn.Conn.Server().Broadcast(nsConn, msg)
 				return nil
 			},
+			"probe_post": func(nsConn *websocket.NSConn, msg websocket.Message) error {
+				// room.String() returns -> NSConn.String() returns -> Conn.String() returns -> Conn.ID()
+				log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
+
+				session, err := auth.GetSessionFromWSConn(nsConn.String(), r.DB)
+				if err != nil {
+					return err
+				}
+
+				a := agent.Agent{ID: session.ID}
+				err = a.Get(r.DB)
+				if err != nil {
+					return err
+				}
+
+				probe := agent.Probe{Agent: session.ID}
+				probes, _ := probe.GetAll(r.DB)
+
+				marshal, err := json.Marshal(probes)
+				if err != nil {
+					return err
+				}
+
+				nsConn.Emit("probe_get", marshal)
+
+				// Write message back to the client message owner with:
+				// nsConn.Emit("chat", msg)
+				// Write message to all except this client with:
+				//nsConn.Conn.Server().Broadcast(nsConn, msg)
+				return nil
+			},
 		},
 	}
 

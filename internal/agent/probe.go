@@ -49,6 +49,8 @@ type ProbeDataRequest struct {
 
 func (c *Probe) Create(db *mongo.Database) error {
 	c.ID = primitive.NewObjectID()
+	c.CreatedAt = time.Now()
+	c.UpdatedAt = time.Now()
 
 	mar, err := bson.Marshal(c)
 	if err != nil {

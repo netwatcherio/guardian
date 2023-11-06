@@ -45,6 +45,7 @@ func (u *User) Create(db *mongo.Database) error {
 		return errors.New("something went wrong marshalling user struct")
 	}
 	u.CreatedAt = time.Now()
+	u.UpdatedAt = time.Now()
 
 	_, err = db.Collection("users").InsertOne(context.TODO(), b)
 	if err != nil {
