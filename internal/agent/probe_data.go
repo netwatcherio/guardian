@@ -86,7 +86,27 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 			// Handle error
 		}
 		return mtrData, err
-
+	case ProbeType_NETWORKINFO:
+		var mtrData NetResult // Replace with the actual struct for MTR data
+		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		if err != nil {
+			// Handle error
+		}
+		return mtrData, err
+	case ProbeType_PING:
+		var mtrData PingResult // Replace with the actual struct for MTR data
+		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		if err != nil {
+			// Handle error
+		}
+		return mtrData, err
+	case ProbeType_SPEEDTEST:
+		var mtrData SpeedTestResult // Replace with the actual struct for MTR data
+		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		if err != nil {
+			// Handle error
+		}
+		return mtrData, err
 	// Add cases for other probe types
 
 	default:
