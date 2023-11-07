@@ -1,15 +1,12 @@
 package workers
 
 import (
-	"encoding/json"
-	"errors"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 	"nw-guardian/internal/agent"
-	"nw-guardian/internal/site"
-	"strings"
 )
 
+/*
 func Push2Loki(cd *agent.Data, db *mongo.Database) error {
 	// List of default labels which would be attached to every log message
 	agent := agent.Agent{ID: cd.AgentID}
@@ -57,9 +54,22 @@ func Push2Loki(cd *agent.Data, db *mongo.Database) error {
 		"somethingSpecial": "right-here",
 	}
 		promtailClient.LogfWithLabels(promtail.Info, customLabels, "Still here")*/
+//}*/
+
+func CreateProbeDataWorker(c chan agent.ProbeData, db *mongo.Database) {
+	go func(cc chan agent.ProbeData) {
+		for {
+			data := <-cc
+
+			err := data.Create(db)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}(c)
 }
 
-func CreateCheckWorker(c chan agent.Data, db *mongo.Database) {
+/*func CreateCheckWorker(c chan agent.Data, db *mongo.Database) {
 	go func(cl chan agent.Data) {
 		log.Info("Starting check data creation worker...")
 		for {
@@ -93,4 +103,4 @@ func CreateCheckWorker(c chan agent.Data, db *mongo.Database) {
 			}
 		}
 	}(c)
-}
+}*/

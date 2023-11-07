@@ -135,15 +135,20 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 					return err
 				}
 
-				probe := agent.Probe{Agent: session.ID}
-				probes, _ := probe.GetAll(r.DB)
+				data := agent.ProbeData{}
 
-				marshal, err := json.Marshal(probes)
+				err = json.Unmarshal(msg.Body, &data)
 				if err != nil {
+					log.Error(err)
 					return err
 				}
 
-				nsConn.Emit("probe_get", marshal)
+				r.ProbeDataChan <- data
+
+				/*probe := agent.Probe{Agent: session.ID}
+				probes, _ := probe.GetAll(r.DB)
+
+				*/
 
 				// Write message back to the client message owner with:
 				// nsConn.Emit("chat", msg)

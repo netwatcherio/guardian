@@ -6,7 +6,9 @@ import (
 	"github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
 	"nw-guardian/internal"
+	"nw-guardian/internal/agent"
 	"nw-guardian/web"
+	"nw-guardian/workers"
 	"os"
 	"os/signal"
 	"runtime"
@@ -39,6 +41,8 @@ func main() {
 
 	// TODO load routes for main API (primarily front end, & agent auth?)
 	r := web.NewRouter(database.MongoDB)
+	r.ProbeDataChan = make(chan agent.ProbeData)
+	workers.CreateProbeDataWorker(r.ProbeDataChan, r.DB)
 
 	crs := func(ctx iris.Context) {
 		ctx.Header("Access-Control-Allow-Origin", "*")

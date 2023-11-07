@@ -6,6 +6,7 @@ import (
 	"github.com/kataras/neffos"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
+	"nw-guardian/internal/agent"
 )
 
 type Router struct {
@@ -13,6 +14,7 @@ type Router struct {
 	DB              *mongo.Database
 	Routes          []*Route
 	WebSocketServer *neffos.Server
+	ProbeDataChan   chan agent.ProbeData
 }
 
 func NewRouter(mongoDB *mongo.Database) *Router {
@@ -77,11 +79,19 @@ func (r *Router) LoadRoutes(JWT bool) {
 		log.Infof("Loaded route: %s (%s) - %s", v.Name, v.Type, v.Path)
 		if v.Type == RouteType_GET {
 			r.App.Get(v.Path, func(ctx iris.Context) {
-				v.Func(ctx)
+				err := v.Func(ctx)
+				if err != nil {
+					log.Error(err)
+					return
+				}
 			})
 		} else if v.Type == RouteType_POST {
 			r.App.Post(v.Path, func(ctx iris.Context) {
-				v.Func(ctx)
+				err := v.Func(ctx)
+				if err != nil {
+					log.Error(err)
+					return
+				}
 			})
 		} else if v.Type == RouteType_WEBSOCKET {
 			/*r.App.Get("/ws", websocket.New(func(c *websocket.Conn) {

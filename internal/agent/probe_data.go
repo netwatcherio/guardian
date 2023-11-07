@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -21,16 +22,62 @@ type ProbeData struct {
 	Data      interface{}        `json:"data,omitempty"bson:"data,omitempty"`
 }
 
-func (pd *ProbeData) Parse() interface{} {
+func (pd *ProbeData) Create(db *mongo.Database) error {
+	// todo handle to check if agent id is set and all that... or should it be in the api section??
+	pd.ID = primitive.NewObjectID()
+
+	pp := Probe{ID: pd.ProbeID}
+	_, err := pp.Get(db)
+	if err != nil {
+		log.Error(err)
+	}
+	// load types
+
+	pd.Data, _ = pd.parse(db)
+
+	if (pd.CreatedAt == time.Time{}) {
+		// todo handle error and send alert if data that was received was not finished
+		return errors.New("agent sent data with empty timestamp... skipping creation")
+	}
+
+	mar, err := bson.Marshal(pd)
+	if err != nil {
+		log.Errorf("error marshalling check data when creating: %s", err)
+		return err
+	}
+
+	var b *bson.D
+	err = bson.Unmarshal(mar, &b)
+	if err != nil {
+		log.Errorf("error unmarhsalling check data when creating: %s", err)
+		return err
+	}
+	result, err := db.Collection("check_data").InsertOne(context.TODO(), b)
+	if err != nil {
+		log.Errorf("error inserting to database: %s", err)
+		return err
+	}
+
+	fmt.Printf("created probe data with id: %v\n", result.InsertedID)
+	return nil
+}
+
+func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	// todo get ProbeType from ProbeID??
-	switch ProbeType_MTR { // todo
+	probe := Probe{ID: pd.ProbeID}
+	get, err := probe.Get(db)
+	if err != nil {
+		return nil, err
+	}
+
+	switch get[0].Type { // todo
 	case ProbeType_RPERF:
 		var rperfData RPerfResults // Replace with the actual struct for RPERF data
 		err := json.Unmarshal(pd.Data.([]byte), &rperfData)
 		if err != nil {
 			// Handle error
 		}
-		return rperfData
+		return rperfData, err
 
 	case ProbeType_MTR:
 		var mtrData MtrResult // Replace with the actual struct for MTR data
@@ -38,7 +85,7 @@ func (pd *ProbeData) Parse() interface{} {
 		if err != nil {
 			// Handle error
 		}
-		return mtrData
+		return mtrData, err
 
 	// Add cases for other probe types
 
@@ -46,7 +93,7 @@ func (pd *ProbeData) Parse() interface{} {
 		// Handle unsupported probe types or return an error
 	}
 
-	return nil
+	return nil, nil
 }
 
 // GetData requires a checkrequest to be sent, if agent id is set,
