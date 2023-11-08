@@ -36,8 +36,8 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 	pd.Data, _ = pd.parse(db)
 
 	if (pd.CreatedAt == time.Time{}) {
-		// todo handle error and send alert if data that was received was not finished
-		return errors.New("agent sent data with empty timestamp... skipping creation")
+		pd.CreatedAt = time.Now()
+		log.Warnf("Timestamp was not included in probe data...")
 	}
 
 	mar, err := bson.Marshal(pd)
@@ -52,7 +52,7 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 		log.Errorf("error unmarhsalling check data when creating: %s", err)
 		return err
 	}
-	result, err := db.Collection("check_data").InsertOne(context.TODO(), b)
+	result, err := db.Collection("probe_data").InsertOne(context.TODO(), b)
 	if err != nil {
 		log.Errorf("error inserting to database: %s", err)
 		return err
@@ -65,12 +65,12 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	// todo get ProbeType from ProbeID??
 	probe := Probe{ID: pd.ProbeID}
-	get, err := probe.Get(db)
+	_, err := probe.Get(db)
 	if err != nil {
 		return nil, err
 	}
 
-	switch get[0].Type { // todo
+	switch probe.Type { // todo
 	case ProbeType_RPERF:
 		var rperfData RPerfResults // Replace with the actual struct for RPERF data
 		err := json.Unmarshal(pd.Data.([]byte), &rperfData)
@@ -80,12 +80,23 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		return rperfData, err
 
 	case ProbeType_MTR:
-		var mtrData MtrResult // Replace with the actual struct for MTR data
-		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		// First, marshal the interface{} back to JSON
+		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			// Handle error
+			// Handle the error, perhaps return it
+			return nil, err
 		}
-		return mtrData, err
+
+		// Now you can unmarshal the JSON into your struct
+		var mtrData MtrResult
+		err = json.Unmarshal(jsonData, &mtrData)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
+		// Return the successfully unmarshaled data
+		return mtrData, nil
 	case ProbeType_NETWORKINFO:
 		var mtrData NetResult // Replace with the actual struct for MTR data
 		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
@@ -94,8 +105,14 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		}
 		return mtrData, err
 	case ProbeType_PING:
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
 		var mtrData PingResult // Replace with the actual struct for MTR data
-		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
 			// Handle error
 		}
@@ -197,7 +214,7 @@ func (c *Probe) GetData(req ProbeDataRequest, db *mongo.Database) ([]*ProbeData,
 	return checkData, nil
 }
 
-type MtrResult struct {
+/*type MtrResult struct {
 	StartTimestamp time.Time `json:"start_timestamp"bson:"start_timestamp"`
 	StopTimestamp  time.Time `json:"stop_timestamp"bson:"stop_timestamp"`
 	Triggered      bool      `bson:"triggered"json:"triggered"`
@@ -229,6 +246,42 @@ type MtrResult struct {
 			Jint  float64     `json:"Jint"bson:"Jint"`
 		} `json:"hubs"bson:"hubs"`
 	} `json:"report"bson:"report"`
+}*/
+
+type MtrResult struct {
+	StartTimestamp time.Time `json:"start_timestamp" bson:"start_timestamp"`
+	StopTimestamp  time.Time `json:"stop_timestamp" bson:"stop_timestamp"`
+	Triggered      bool      `json:"triggered" bson:"triggered"`
+	Report         MtrReport `json:"report" bson:"report"`
+}
+
+type MtrReport struct {
+	Mtr struct {
+		Src        string `json:"src" bson:"src"`
+		Dst        string `json:"dst" bson:"dst"`
+		Tos        int    `json:"tos" bson:"tos"`     // Assuming 'tos' is an integer
+		Tests      int    `json:"tests" bson:"tests"` // Assuming 'tests' is an integer
+		Psize      string `json:"psize" bson:"psize"`
+		Bitpattern string `json:"bitpattern" bson:"bitpattern"`
+	} `json:"mtr" bson:"mtr"`
+	Hubs []struct {
+		Count int     `json:"count" bson:"count"` // Assuming 'count' is an integer
+		Host  string  `json:"host" bson:"host"`
+		ASN   string  `json:"ASN" bson:"ASN"`
+		Loss  float64 `json:"Loss%" bson:"Loss%"`
+		Drop  int     `json:"Drop" bson:"Drop"`
+		Rcv   int     `json:"Rcv" bson:"Rcv"`
+		Snt   int     `json:"Snt" bson:"Snt"`
+		Best  float64 `json:"Best" bson:"Best"`
+		Avg   float64 `json:"Avg" bson:"Avg"`
+		Wrst  float64 `json:"Wrst" bson:"Wrst"`
+		StDev float64 `json:"StDev" bson:"StDev"`
+		Gmean float64 `json:"Gmean" bson:"Gmean"`
+		Jttr  float64 `json:"Jttr" bson:"Jttr"`
+		Javg  float64 `json:"Javg" bson:"Javg"`
+		Jmax  float64 `json:"Jmax" bson:"Jmax"`
+		Jint  float64 `json:"Jint" bson:"Jint"`
+	} `json:"hubs" bson:"hubs"`
 }
 type NetResult struct {
 	LocalAddress     string    `json:"local_address"bson:"local_address"`
