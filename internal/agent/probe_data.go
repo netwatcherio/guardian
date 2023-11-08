@@ -72,8 +72,14 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 
 	switch probe.Type { // todo
 	case ProbeType_RPERF:
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
 		var rperfData RPerfResults // Replace with the actual struct for RPERF data
-		err := json.Unmarshal(pd.Data.([]byte), &rperfData)
+		err = json.Unmarshal(jsonData, &rperfData)
 		if err != nil {
 			// Handle error
 		}
@@ -98,8 +104,14 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		// Return the successfully unmarshaled data
 		return mtrData, nil
 	case ProbeType_NETWORKINFO:
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
 		var mtrData NetResult // Replace with the actual struct for MTR data
-		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
 			// Handle error
 		}
@@ -118,8 +130,14 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		}
 		return mtrData, err
 	case ProbeType_SPEEDTEST:
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
 		var mtrData SpeedTestResult // Replace with the actual struct for MTR data
-		err := json.Unmarshal(pd.Data.([]byte), &mtrData)
+		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
 			// Handle error
 		}
