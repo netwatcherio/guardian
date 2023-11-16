@@ -21,13 +21,31 @@ type Probe struct {
 	Config        ProbeConfig        `bson:"config"json:"config"`
 }
 
+// todo update targets to be a struct instead of a simple string
+
+// for group based target data, on  generation of the "targets" grabbed by the agent on connection
+// it will grab the latest IPs of the agent and include those as the "target" it self to aide in automating
+// ProbeTarget target string will automatically be populated if it is a group probe, if not, the normal target string will be used
+type ProbeTarget struct {
+	Target string             `json:"target,omitempty" bson:"target"`
+	Agent  primitive.ObjectID `json:"agent,omitempty" bson:"agent"`
+	Group  primitive.ObjectID `json:"group,omitempty" bson:"group"`
+}
+
+/*
+when a list of probetargets is given, normal targets will only contain a target, and not an agent, etc
+- this way we can then re-include the probetarget into the data it sends back to differentiate between targets
+even though there is technically only 1 "probe"
+
+*/
+
 type ProbeConfig struct {
-	Target   string    `json:"target" bson:"target"`
-	Duration int       `json:"duration" bson:"duration"`
-	Count    int       `json:"count" bson:"count"`
-	Interval int       `json:"interval" bson:"interval"`
-	Server   bool      `bson:"server" json:"server"`
-	Pending  time.Time `json:"pending" bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
+	Target   []ProbeTarget `json:"target" bson:"target"`
+	Duration int           `json:"duration" bson:"duration"`
+	Count    int           `json:"count" bson:"count"`
+	Interval int           `json:"interval" bson:"interval"`
+	Server   bool          `bson:"server" json:"server"`
+	Pending  time.Time     `json:"pending" bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
 }
 
 type ProbeType string

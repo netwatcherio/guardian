@@ -14,12 +14,13 @@ import (
 )
 
 type ProbeData struct {
-	ID        primitive.ObjectID `json:"id"bson:"_id"`
-	ProbeID   primitive.ObjectID `json:"probe"bson:"probe"`
-	Triggered bool               `json:"triggered"bson:"triggered"`
-	CreatedAt time.Time          `bson:"createdAt"json:"createdAt"`
-	UpdatedAt time.Time          `bson:"updatedAt"json:"updatedAt"`
-	Data      interface{}        `json:"data,omitempty"bson:"data,omitempty"`
+	ID        primitive.ObjectID `json:"id" bson:"_id"`
+	ProbeID   primitive.ObjectID `json:"probe" bson:"probe"`
+	Triggered bool               `json:"triggered" bson:"triggered"`
+	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
+	Target    ProbeTarget        `bson:"target" json:"target"`
+	Data      interface{}        `json:"data,omitempty" bson:"data,omitempty"`
 }
 
 func (pd *ProbeData) Create(db *mongo.Database) error {

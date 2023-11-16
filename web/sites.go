@@ -5,6 +5,7 @@ import (
 	"github.com/kataras/iris/v12"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"nw-guardian/internal/agent"
 	"nw-guardian/internal/site"
 )
 
@@ -131,6 +132,72 @@ func addRouteSites(r *Router) []*Route {
 			return nil
 		},
 		Type: "DELETE",
+	})
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "New Agent Group",
+		Path: "/sites/{siteid}/groups",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := new(agent.Group)
+			s.SiteID = siteId
+			err = ctx.ReadJSON(&s)
+			if err != nil {
+				return err
+			}
+
+			err = s.Create(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+			ctx.StatusCode(http.StatusOK)
+			return nil
+		},
+		Type: RouteType_POST,
+	})
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Site Groups",
+		Path: "/sites/{siteid}/groups",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := site.Site{ID: siteId}
+			err = s.Get(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+			ctx.JSON(s)
+			return nil
+		},
+		Type: RouteType_GET,
 	})
 
 	return tempRoutes
