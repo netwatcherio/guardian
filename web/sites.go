@@ -189,12 +189,15 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := site.Site{ID: siteId}
-			err = s.Get(r.DB)
+			s := agent.Group{SiteID: siteId}
+			groups, err := s.GetAll(r.DB)
 			if err != nil {
 				return ctx.JSON(err)
 			}
-			ctx.JSON(s)
+			err = ctx.JSON(groups)
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 		Type: RouteType_GET,

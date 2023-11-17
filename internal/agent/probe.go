@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -109,52 +108,25 @@ func (c *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 	}
 
 	fmt.Println(results)
+	var agentChecks []*Probe
 
-	if c.Agent == (primitive.ObjectID{0}) {
-		if len(results) > 1 {
-			return nil, errors.New("multiple check match when using id")
-		}
-
-		if len(results) == 0 {
-			return nil, errors.New("no sites match when using id")
-		}
-
-		doc, err := bson.Marshal(&results[0])
+	for _, r := range results {
+		var acData Probe
+		doc, err := bson.Marshal(r)
 		if err != nil {
 			log.Errorf("1 %s", err)
 			return nil, err
 		}
-
-		err = bson.Unmarshal(doc, &c)
+		err = bson.Unmarshal(doc, &acData)
 		if err != nil {
-			log.Errorf("2 %s", err)
+			log.Errorf("22 %s", err)
 			return nil, err
 		}
 
-		return nil, nil
-	} else {
-		var agentChecks []*Probe
-
-		for _, r := range results {
-			var acData Probe
-			doc, err := bson.Marshal(r)
-			if err != nil {
-				log.Errorf("1 %s", err)
-				return nil, err
-			}
-			err = bson.Unmarshal(doc, &acData)
-			if err != nil {
-				log.Errorf("22 %s", err)
-				return nil, err
-			}
-
-			agentChecks = append(agentChecks, &acData)
-		}
-
-		return agentChecks, nil
+		agentChecks = append(agentChecks, &acData)
 	}
 
-	return nil, nil
+	return agentChecks, nil
 }
 
 // GetAll get all checks based on id, and &/or type

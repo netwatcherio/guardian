@@ -166,19 +166,19 @@ func (c *Probe) GetData(req ProbeDataRequest, db *mongo.Database) ([]*ProbeData,
 	var timeFilter bson.M
 
 	if req.Recent {
-		opts = opts.SetSort(bson.D{{"timestamp", -1}})
+		opts = opts.SetSort(bson.D{{"data.stop_timestamp", -1}})
 	} else {
 		if c.Type == ProbeType_RPERF {
 			timeFilter = bson.M{
-				"check": c.ID,
-				"result.stop_timestamp": bson.M{
+				"probe": c.ID,
+				"data.stop_timestamp": bson.M{
 					"$gt": req.StartTimestamp,
 					"$lt": req.EndTimestamp,
 				}}
 		} else {
 			timeFilter = bson.M{
-				"check": c.ID,
-				"timestamp": bson.M{
+				"probe": c.ID,
+				"createdAt": bson.M{
 					"$gt": req.StartTimestamp,
 					"$lt": req.EndTimestamp,
 				}}

@@ -25,7 +25,7 @@ func addRouteProbes(r *Router) []*Route {
 
 			params := ctx.Params()
 
-			cId, err := primitive.ObjectIDFromHex(params.Get("check"))
+			cId, err := primitive.ObjectIDFromHex(params.Get("agentid"))
 			if err != nil {
 				return ctx.JSON(err)
 			}
@@ -42,6 +42,46 @@ func addRouteProbes(r *Router) []*Route {
 
 			log.Info(check)
 			err = ctx.JSON(cc)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Type: RouteType_GET,
+	})
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get Probe",
+		Path: "/probe/{probeId}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("probeId"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			// todo handle edge cases? the user *could* break their install if not... hmmm...
+
+			check := agent.Probe{ID: cId}
+
+			// .Get will update it self instead of returning a list with a first object
+			cc, err := check.Get(r.DB)
+			if err != nil {
+				return err
+			}
+
+			//log.Info(check)
+			err = ctx.JSON(&cc)
 			if err != nil {
 				return err
 			}
@@ -130,6 +170,47 @@ func addRouteProbes(r *Router) []*Route {
 		Type: RouteType_GET,
 	})
 	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get All Probes",
+		Path: "/probes/agent/{agent}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("agent"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			// todo handle edge cases? the user *could* break their install if not... hmmm...
+
+			check := agent.Probe{Agent: cId}
+
+			// .Get will update it self instead of returning a list with a first object
+			probes, err := check.GetAll(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			log.Info(check)
+
+			err = ctx.JSON(probes)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Type: RouteType_GET,
+	})
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Delete Probe",
 		Path: "/probes/{probeid}",
 		JWT:  true,
@@ -140,12 +221,41 @@ func addRouteProbes(r *Router) []*Route {
 	})
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Probe Data",
-		Path: "/probes/data/{probeid}",
+		Path: "/probes/data/{probe}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("probe"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			probe := agent.Probe{ID: cId}
+
+			req := agent.ProbeDataRequest{}
+			err = ctx.ReadJSON(&req)
+			get, err := probe.GetData(req, r.DB)
+			if err != nil {
+				return err
+			}
+
+			err = ctx.JSON(get)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		},
-		Type: RouteType_GET,
+		Type: RouteType_POST,
 	})
 	return tempRoutes
 }
