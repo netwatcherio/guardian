@@ -60,8 +60,8 @@ const (
 
 type ProbeDataRequest struct {
 	Limit          int64     `json:"limit"`
-	StartTimestamp time.Time `json:"start_timestamp"`
-	EndTimestamp   time.Time `json:"end_timestamp"`
+	StartTimestamp time.Time `json:"startTimestamp"`
+	EndTimestamp   time.Time `json:"endTimestamp"`
 	Recent         bool      `json:"recent"`
 	Option         string    `json:"option"`
 }

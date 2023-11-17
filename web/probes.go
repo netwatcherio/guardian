@@ -1,15 +1,65 @@
 package web
 
 import (
+	"bytes"
 	"github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"io/ioutil"
 	"net/http"
 	"nw-guardian/internal/agent"
 )
 
 func addRouteProbes(r *Router) []*Route {
 	var tempRoutes []*Route
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get NetworkInfo Probe",
+		Path: "/netinfo/{agentid}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("agentid"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			// todo handle edge cases? the user *could* break their install if not... hmmm...
+
+			check := agent.Probe{Agent: cId, Type: agent.ProbeType_MTR}
+
+			// .Get will update it self instead of returning a list with a first object
+			dd, err := check.Get(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			dd[0].Agent = primitive.ObjectID{0}
+
+			data, err := dd[0].GetData(&agent.ProbeDataRequest{Recent: true}, r.DB)
+			if err != nil {
+				return err
+			}
+
+			// todo only return first element, we don't care currently about previous IPs and such...
+			err = ctx.JSON(data[len(data)-1])
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Type: RouteType_GET,
+	})
+
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Similar Probes",
 		Path: "/probes/similar/{probeid}",
@@ -85,7 +135,7 @@ func addRouteProbes(r *Router) []*Route {
 			}
 
 			log.Info(check)
-			err = ctx.JSON(cc)
+			err = ctx.JSON(&cc)
 			if err != nil {
 				return err
 			}
@@ -200,14 +250,15 @@ func addRouteProbes(r *Router) []*Route {
 			check := agent.Probe{ID: cId}
 
 			// .Get will update it self instead of returning a list with a first object
-			_, err = check.Get(r.DB)
+			cc, err := check.Get(r.DB)
 			if err != nil {
 				return ctx.JSON(err)
 			}
 
-			log.Info(check)
-
-			ctx.JSON(check)
+			err = ctx.JSON(cc)
+			if err != nil {
+				return err
+			}
 
 			return nil
 		},
@@ -269,6 +320,10 @@ func addRouteProbes(r *Router) []*Route {
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
 			ctx.ContentType("application/json") // "Application/json"
+
+			// Log content type for debugging
+			//log.Info("Content Type: ", ctx.GetHeader("Content-Type"))
+
 			t := GetClaims(ctx)
 			_, err := t.FromID(r.DB)
 			if err != nil {
@@ -285,9 +340,24 @@ func addRouteProbes(r *Router) []*Route {
 
 			probe := agent.Probe{ID: cId}
 
+			pp, err := probe.Get(r.DB)
+			pp[0].Agent = primitive.ObjectID{0}
+
+			// Read raw body for logging
+			rawBody, _ := ioutil.ReadAll(ctx.Request().Body)
+			log.Info("Raw request body: ", string(rawBody))
+
+			// Recreate the body for ReadJSON
+			ctx.Request().Body = ioutil.NopCloser(bytes.NewBuffer(rawBody))
+
 			req := agent.ProbeDataRequest{}
 			err = ctx.ReadJSON(&req)
-			get, err := probe.GetData(req, r.DB)
+			if err != nil {
+				log.Errorf("Error reading JSON: %s", err)
+				return err
+			}
+
+			get, err := pp[0].GetData(&req, r.DB)
 			if err != nil {
 				return err
 			}
@@ -299,6 +369,7 @@ func addRouteProbes(r *Router) []*Route {
 
 			return nil
 		},
+
 		Type: RouteType_POST,
 	})
 	return tempRoutes

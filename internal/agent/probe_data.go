@@ -155,61 +155,43 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 // GetData requires a checkrequest to be sent, if agent id is set,
 // it will require the type to be sent in check, otherwise
 // the check id will be used
-func (c *Probe) GetData(req ProbeDataRequest, db *mongo.Database) ([]*ProbeData, error) {
+func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData, error) {
 	opts := options.Find().SetLimit(req.Limit)
 
-	var filter = bson.D{{"probe", c.ID}}
+	// Combined filter
+	var combinedFilter bson.M = bson.M{"probe": c.ID}
 	if c.Agent != (primitive.ObjectID{0}) {
-		filter = bson.D{{"agent", c.Agent}, {"type", c.Type}}
+		combinedFilter["agent"] = c.Agent
+		combinedFilter["type"] = c.Type
 	}
 
-	var timeFilter bson.M
-
-	if req.Recent {
+	if !req.Recent {
+		opts.SetSort(bson.D{{"data.stop_timestamp", -1}})
+		timeFilter := bson.M{
+			"data.stop_timestamp": bson.M{
+				"$gt": req.StartTimestamp,
+				"$lt": req.EndTimestamp,
+			},
+		}
+		for k, v := range timeFilter {
+			combinedFilter[k] = v
+		}
+	} else {
 		opts = opts.SetSort(bson.D{{"data.stop_timestamp", -1}})
-	} else {
-		if c.Type == ProbeType_RPERF {
-			timeFilter = bson.M{
-				"probe": c.ID,
-				"data.stop_timestamp": bson.M{
-					"$gt": req.StartTimestamp,
-					"$lt": req.EndTimestamp,
-				}}
-		} else {
-			timeFilter = bson.M{
-				"probe": c.ID,
-				"createdAt": bson.M{
-					"$gt": req.StartTimestamp,
-					"$lt": req.EndTimestamp,
-				}}
-		}
 	}
 
-	var cursor *mongo.Cursor
-	var err error
-
-	if req.Recent {
-		cursor, err = db.Collection("probe_data").Find(context.TODO(), filter, opts)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cursor, err = db.Collection("probe_data").Find(context.TODO(), timeFilter, opts)
-		if err != nil {
-			return nil, err
-		}
+	cursor, err := db.Collection("probe_data").Find(context.TODO(), combinedFilter, opts)
+	if err != nil {
+		return nil, err
 	}
+
 	var results []bson.D
 	if err := cursor.All(context.TODO(), &results); err != nil {
 		return nil, err
 	}
 
-	if len(results) <= 0 {
+	if len(results) == 0 {
 		return nil, errors.New("no data matches the provided check id")
-	}
-
-	if len(results) <= 0 {
-		return nil, errors.New("no data found")
 	}
 
 	var checkData []*ProbeData
@@ -218,15 +200,14 @@ func (c *Probe) GetData(req ProbeDataRequest, db *mongo.Database) ([]*ProbeData,
 		var cData ProbeData
 		doc, err := bson.Marshal(r)
 		if err != nil {
-			log.Errorf("1 %s", err)
+			log.Errorf("Error marshaling data: %s", err)
 			return nil, err
 		}
 		err = bson.Unmarshal(doc, &cData)
 		if err != nil {
-			log.Errorf("22 %s", err)
+			log.Errorf("Error unmarshaling data: %s", err)
 			return nil, err
 		}
-
 		checkData = append(checkData, &cData)
 	}
 
