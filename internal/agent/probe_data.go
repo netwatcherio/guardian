@@ -65,13 +65,13 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 
 func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	// todo get ProbeType from ProbeID??
-	probe := Probe{ID: pd.ProbeID}
-	_, err := probe.Get(db)
+	pp := Probe{ID: pd.ProbeID}
+	probe, err := pp.Get(db)
 	if err != nil {
 		return nil, err
 	}
 
-	switch probe.Type { // todo
+	switch probe[0].Type { // todo
 	case ProbeType_RPERF:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {

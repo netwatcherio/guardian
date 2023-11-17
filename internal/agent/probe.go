@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -62,6 +63,69 @@ type ProbeDataRequest struct {
 	StartTimestamp time.Time `json:"start_timestamp"`
 	EndTimestamp   time.Time `json:"end_timestamp"`
 	Recent         bool      `json:"recent"`
+	Option         string    `json:"option"`
+}
+
+func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
+	// todo finding similar probes is based on the targets and not groups currently
+
+	if len(c.Config.Target) == 0 {
+		return nil, errors.New("no targets defined in probe config")
+	}
+
+	var similarProbes []*Probe
+
+	for _, target := range c.Config.Target {
+		// Skip this target if it is part of a group.
+		if (target.Group != primitive.ObjectID{0}) {
+			continue
+		}
+
+		// Build the filter to find probes with the same target and agent.
+		filter := bson.D{
+			{"config.target", bson.D{
+				{"$elemMatch", bson.D{
+					{"target", target.Target},
+					{"agent", primitive.ObjectID{0}},
+					{"group", primitive.ObjectID{0}}, // Ensure the target is not part of a group.
+				}},
+			}},
+		}
+
+		// Query the database for probes with matching targets.
+		cursor, err := db.Collection("probes").Find(context.TODO(), filter)
+		if err != nil {
+			return nil, err
+		}
+
+		var results []bson.D
+		if err := cursor.All(context.TODO(), &results); err != nil {
+			return nil, err
+		}
+
+		for _, r := range results {
+
+			var pData Probe
+			doc, err := bson.Marshal(r)
+			if err != nil {
+				log.Errorf("Error marshalling: %s", err)
+				continue // Skip this result on error.
+			}
+			err = bson.Unmarshal(doc, &pData)
+			if err != nil {
+				log.Errorf("Error unmarshalling: %s", err)
+				continue // Skip this result on error.
+			}
+
+			similarProbes = append(similarProbes, &pData)
+		}
+	}
+
+	if len(similarProbes) <= 0 {
+		return nil, errors.New("no similar probes found")
+	}
+
+	return similarProbes, nil
 }
 
 func (c *Probe) Create(db *mongo.Database) error {

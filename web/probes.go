@@ -11,6 +11,50 @@ import (
 func addRouteProbes(r *Router) []*Route {
 	var tempRoutes []*Route
 	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get Similar Probes",
+		Path: "/probes/similar/{probeid}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("probeid"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			// todo handle edge cases? the user *could* break their install if not... hmmm...
+
+			check := agent.Probe{ID: cId}
+
+			// this actually returns the probes isntead of updating now
+			cc, err := check.Get(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			probes, err := cc[0].FindSimilarProbes(r.DB)
+			if err != nil {
+				return err
+			}
+
+			err = ctx.JSON(probes)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Type: RouteType_GET,
+	})
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Probes",
 		Path: "/probes/{agentid}",
 		JWT:  true,
