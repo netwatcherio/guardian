@@ -144,6 +144,19 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		}
 		return mtrData, err
 	// Add cases for other probe types
+	case ProbeType_SYSTEMINFO:
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
+		var mtrData CompleteSystemInfo // Replace with the actual struct for MTR data
+		err = json.Unmarshal(jsonData, &mtrData)
+		if err != nil {
+			// Handle error
+		}
+		return mtrData, err
 
 	default:
 		// Handle unsupported probe types or return an error
@@ -400,4 +413,61 @@ type PingResult struct {
 	// StdDevRtt is the standard deviation of the round-trip times sent via
 	// this pinger.
 	StdDevRtt time.Duration `json:"std_dev_rtt"bson:"std_dev_rtt"`
+}
+
+type CompleteSystemInfo struct {
+	HostInfo   HostInfo       `json:"hostInfo" bson:"hostInfo"`
+	MemoryInfo HostMemoryInfo `json:"memoryInfo" bson:"memoryInfo"`
+	CPUTimes   CPUTimes       `json:"CPUTimes" bson:"CPUTimes"`
+	Timestamp  time.Time      `json:"timestamp" bson:"timestamp"`
+}
+
+type CPUTimes struct {
+	User    time.Duration `json:"user" bson:"user"`
+	System  time.Duration `json:"system" bson:"system"`
+	Idle    time.Duration `json:"idle,omitempty" bson:"idle"`
+	IOWait  time.Duration `json:"iowait,omitempty" bson:"IOWait"`
+	IRQ     time.Duration `json:"irq,omitempty" bson:"IRQ"`
+	Nice    time.Duration `json:"nice,omitempty" bson:"nice"`
+	SoftIRQ time.Duration `json:"soft_irq,omitempty" bson:"softIRQ"`
+	Steal   time.Duration `json:"steal,omitempty" bson:"steal"`
+}
+
+type HostInfo struct {
+	Architecture      string    `json:"architecture" bson:"architecture"`
+	BootTime          time.Time `json:"boot_time" bson:"bootTime"`
+	Containerized     *bool     `json:"containerized,omitempty" bson:"containerized"`
+	Hostname          string    `json:"name" bson:"hostname"`
+	IPs               []string  `json:"ip,omitempty" bson:"IPs"`
+	KernelVersion     string    `json:"kernel_version" bson:"kernelVersion"`
+	MACs              []string  `json:"mac" bson:"MACs"`
+	OS                OSInfo    `json:"os" bson:"OS"`
+	Timezone          string    `json:"timezone" bson:"timezone"`
+	TimezoneOffsetSec int       `json:"timezone_offset_sec" bson:"timezoneOffsetSec"`
+	UniqueID          string    `json:"id,omitempty" bson:"uniqueID"`
+}
+
+type OSInfo struct {
+	Type     string `json:"type" bson:"type"`
+	Family   string `json:"family" bson:"family"`
+	Platform string `json:"platform" bson:"platform"`
+	Name     string `json:"name" bson:"name"`
+	Version  string `json:"version" bson:"version"`
+	Major    int    `json:"major" bson:"major"`
+	Minor    int    `json:"minor" bson:"minor"`
+	Patch    int    `json:"patch" bson:"patch"`
+	Build    string `json:"build,omitempty" bson:"build"`
+	Codename string `json:"codename,omitempty" bson:"codename"`
+}
+
+// HostMemoryInfo (all values are specified in bytes).
+type HostMemoryInfo struct {
+	Total        uint64            `json:"total_bytes" bson:"total"`                // Total physical memory.
+	Used         uint64            `json:"used_bytes" bson:"used"`                  // Total - Free
+	Available    uint64            `json:"available_bytes" bson:"available"`        // Amount of memory available without swapping.
+	Free         uint64            `json:"free_bytes" bson:"free"`                  // Amount of memory not used by the system.
+	VirtualTotal uint64            `json:"virtual_total_bytes" bson:"virtualTotal"` // Total virtual memory.
+	VirtualUsed  uint64            `json:"virtual_used_bytes" bson:"virtualUsed"`   // VirtualTotal - VirtualFree
+	VirtualFree  uint64            `json:"virtual_free_bytes" bson:"virtualFree"`   // Virtual memory that is not used.
+	Metrics      map[string]uint64 `json:"raw,omitempty" bson:"metrics"`            // Other memory related metrics.
 }

@@ -107,6 +107,13 @@ func (a *Agent) Create(db *mongo.Database) error {
 		return err
 	}
 
+	// also create system info probe
+	ss := Probe{Agent: a.ID, Type: ProbeType_SYSTEMINFO}
+	err = ss.Create(db)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("created agent with id: %v\n", result.InsertedID)
 	return nil
 }

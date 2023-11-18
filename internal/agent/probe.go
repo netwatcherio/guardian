@@ -56,6 +56,7 @@ const (
 	ProbeType_PING        ProbeType = "PING"
 	ProbeType_SPEEDTEST   ProbeType = "SPEEDTEST"
 	ProbeType_NETWORKINFO ProbeType = "NETINFO"
+	ProbeType_SYSTEMINFO  ProbeType = "SYSINFO"
 )
 
 type ProbeDataRequest struct {
