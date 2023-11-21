@@ -59,6 +59,53 @@ func addRouteProbes(r *Router) []*Route {
 		},
 		Type: RouteType_GET,
 	})
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get System Info Probe",
+		Path: "/sysinfo/{agentid}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("agentid"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			// todo handle edge cases? the user *could* break their install if not... hmmm...
+
+			check := agent.Probe{Agent: cId, Type: agent.ProbeType_SYSTEMINFO}
+
+			// .Get will update it self instead of returning a list with a first object
+			dd, err := check.Get(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			dd[0].Agent = primitive.ObjectID{0}
+
+			data, err := dd[0].GetData(&agent.ProbeDataRequest{Recent: true}, r.DB)
+			if err != nil {
+				return err
+			}
+
+			// todo only return first element, we don't care currently about previous IPs and such...
+			err = ctx.JSON(data[len(data)-1])
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		Type: RouteType_GET,
+	})
 
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Similar Probes",
