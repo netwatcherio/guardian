@@ -159,7 +159,9 @@ func (c *Probe) Create(db *mongo.Database) error {
 func (c *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 	var filter = bson.D{{"_id", c.ID}}
 
-	if c.Agent != (primitive.ObjectID{0}) {
+	if c.Type != "" && c.Agent != (primitive.ObjectID{0}) {
+		filter = bson.D{{"agent", c.Agent}, {"type", c.Type}}
+	} else if c.Agent != (primitive.ObjectID{0}) {
 		filter = bson.D{{"agent", c.Agent}}
 	}
 
