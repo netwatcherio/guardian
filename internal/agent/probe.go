@@ -74,6 +74,11 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 		return nil, errors.New("no targets defined in probe config")
 	}
 
+	get, err := c.Get(db)
+	if err != nil {
+		return nil, err
+	}
+
 	var similarProbes []*Probe
 
 	for _, target := range c.Config.Target {
@@ -83,14 +88,15 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 		}
 
 		// Build the filter to find probes with the same target and agent.
-		filter := bson.D{
-			{"config.target", bson.D{
-				{"$elemMatch", bson.D{
-					{"target", target.Target},
-					{"agent", primitive.ObjectID{0}},
-					{"group", primitive.ObjectID{0}}, // Ensure the target is not part of a group.
-				}},
-			}},
+		filter := bson.M{
+			"config.target": bson.M{
+				"$elemMatch": bson.M{
+					"target": target.Target,
+					"agent":  primitive.ObjectID{}, // Assuming you want an empty ObjectID here
+					"group":  primitive.ObjectID{}, // Ensure the target is not part of a group
+				},
+			},
+			"agent": get[0].Agent,
 		}
 
 		// Query the database for probes with matching targets.
