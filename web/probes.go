@@ -34,7 +34,7 @@ func addRouteProbes(r *Router) []*Route {
 
 			// todo handle edge cases? the user *could* break their install if not... hmmm...
 
-			check := agent.Probe{Agent: cId, Type: agent.ProbeType_MTR}
+			check := agent.Probe{Agent: cId, Type: agent.ProbeType_NETWORKINFO}
 
 			// .Get will update it self instead of returning a list with a first object
 			dd, err := check.Get(r.DB)
