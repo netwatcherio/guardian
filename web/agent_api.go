@@ -2,7 +2,10 @@ package web
 
 import (
 	"github.com/kataras/iris/v12"
+	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"nw-guardian/internal/agent"
 	"nw-guardian/internal/auth"
 )
 
@@ -28,6 +31,17 @@ func addRouteAgentAPI(r *Router) []*Route {
 			if err != nil {
 				ctx.StatusCode(http.StatusUnauthorized)
 				return nil
+			}
+
+			hex, err := primitive.ObjectIDFromHex(l.ID)
+			if err != nil {
+				return err
+			}
+
+			a := agent.Agent{ID: hex}
+			err = a.UpdateTimestamp(r.DB)
+			if err != nil {
+				log.Error(err)
 			}
 			_, err = ctx.Write([]byte(t))
 			if err != nil {

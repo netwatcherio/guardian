@@ -104,6 +104,11 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 					return err
 				}
 
+				err = a.UpdateTimestamp(r.DB)
+				if err != nil {
+					log.Error(err)
+				}
+
 				probe := agent.Probe{Agent: session.ID}
 				probes, _ := probe.GetAll(r.DB)
 

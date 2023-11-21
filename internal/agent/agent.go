@@ -25,6 +25,19 @@ type Agent struct {
 	// pin will be used for "auth" as the password, the ID will stay the same
 }
 
+func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	update := bson.D{{"$set", bson.D{{"updatedAt", time.Now()}}}}
+
+	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GeneratePin(max int) string {
 	var table = [...]byte{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}
 	b := make([]byte, max)
