@@ -96,11 +96,24 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 
 		// Build the filter to find probes with the same target and agent.
 		filter := bson.M{
-			"config.target": bson.M{
-				"$elemMatch": bson.M{
-					"target": ttArget,
-					"agent":  primitive.ObjectID{}, // Assuming you want an empty ObjectID here
-					"group":  primitive.ObjectID{}, // Ensure the target is not part of a group
+			"$or": []bson.M{
+				{
+					"config.target": bson.M{
+						"$elemMatch": bson.M{
+							"target": target.Target,
+							"agent":  primitive.ObjectID{}, // Assuming you want an empty ObjectID here
+							"group":  primitive.ObjectID{}, // Ensure the target is not part of a group
+						},
+					},
+				},
+				{
+					"config.target": bson.M{
+						"$elemMatch": bson.M{
+							"target": ttArget,
+							"agent":  primitive.ObjectID{}, // Assuming you want an empty ObjectID here
+							"group":  primitive.ObjectID{}, // Ensure the target is not part of a group
+						},
+					},
 				},
 			},
 			"agent": get[0].Agent,
