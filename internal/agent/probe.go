@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"strings"
 	"time"
 )
 
@@ -87,11 +88,17 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 			continue
 		}
 
+		var newT = strings.Split(target.Target, ":")
+		var ttArget = target.Target
+		if len(strings.Split(target.Target, ":")) >= 2 {
+			ttArget = newT[0]
+		}
+
 		// Build the filter to find probes with the same target and agent.
 		filter := bson.M{
 			"config.target": bson.M{
 				"$elemMatch": bson.M{
-					"target": target.Target,
+					"target": ttArget,
 					"agent":  primitive.ObjectID{}, // Assuming you want an empty ObjectID here
 					"group":  primitive.ObjectID{}, // Ensure the target is not part of a group
 				},
