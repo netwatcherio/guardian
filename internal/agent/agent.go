@@ -38,6 +38,31 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 	return nil
 }
 
+func (a *Agent) Initialize(db *mongo.Database) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	update := bson.D{{"$set", bson.D{{"initialized", true}}}}
+
+	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (a *Agent) DeInitialize(db *mongo.Database) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	update := bson.D{{"$set", bson.D{{"initialized", false}}}}
+
+	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GeneratePin(max int) string {
 	var table = [...]byte{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}
 	b := make([]byte, max)

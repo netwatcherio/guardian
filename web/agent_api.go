@@ -43,6 +43,11 @@ func addRouteAgentAPI(r *Router) []*Route {
 			if err != nil {
 				log.Error(err)
 			}
+			err = a.Initialize(r.DB)
+			if err != nil {
+				return err
+			}
+
 			_, err = ctx.Write([]byte(t))
 			if err != nil {
 				return err
