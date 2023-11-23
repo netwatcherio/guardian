@@ -25,13 +25,20 @@ type Probe struct {
 
 // todo update targets to be a struct instead of a simple string
 
-// for group based target data, on  generation of the "targets" grabbed by the agent on connection
+// ProbeTarget for group based target data, on  generation of the "targets" grabbed by the agent on connection
 // it will grab the latest IPs of the agent and include those as the "target" it self to aide in automating
 // ProbeTarget target string will automatically be populated if it is a group probe, if not, the normal target string will be used
 type ProbeTarget struct {
 	Target string             `json:"target,omitempty" bson:"target"`
 	Agent  primitive.ObjectID `json:"agent,omitempty" bson:"agent"`
 	Group  primitive.ObjectID `json:"group,omitempty" bson:"group"`
+}
+
+type ProbeAlert struct {
+	Agent     primitive.ObjectID `json:"agent,omitempty" bson:"agent" bson:"agent"`
+	Timestamp time.Time          `json:"timestamp" bson:"timestamp"`
+	Probe     Probe              `bson:"probe" json:"probe"`
+	ProbeData ProbeData          `json:"probe_data" bson:"probeData"`
 }
 
 /*
