@@ -21,8 +21,31 @@ type Agent struct {
 	Initialized bool               `bson:"initialized"json:"initialized"` // will this be used or will we use the sessions/jwt tokens?
 	Location    string             `bson:"location"json:"location"`       // logical/physical location
 	CreatedAt   time.Time          `bson:"createdAt"json:"createdAt"`
-	UpdatedAt   time.Time          `bson:"updatedAt"json:"updatedAt"`
+	UpdatedAt   time.Time          `bson:"updatedAt"json:"updatedAt"` // used for heart beat
 	// pin will be used for "auth" as the password, the ID will stay the same
+}
+
+func (a *Agent) UpdateAgentDetails(db *mongo.Database, newName string, newLocation string) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	update := bson.D{
+		{"$set", bson.D{
+			{"name", newName},
+			{"location", newLocation},
+		}},
+	}
+
+	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	// Update the Agent struct to reflect the new state
+	a.Name = newName
+	a.Location = newLocation
+	a.UpdatedAt = time.Now()
+
+	return nil
 }
 
 func (a *Agent) UpdateTimestamp(db *mongo.Database) error {

@@ -97,6 +97,47 @@ func addRouteAgents(r *Router) []*Route {
 		Type: RouteType_POST,
 	})
 	tempRoutes = append(tempRoutes, &Route{
+		Name: "Update Agent",
+		Path: "/agents/update/{agentid}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			sId, err := primitive.ObjectIDFromHex(params.Get("agentid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := agent.Agent{ID: sId}
+
+			cAgent := new(agent.Agent)
+			ctx.ReadJSON(&cAgent)
+
+			cAgent.Site = s.ID
+
+			err = cAgent.UpdateAgentDetails(r.DB, cAgent.Name, cAgent.Location)
+			if err != nil {
+				log.Error(err)
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			ctx.StatusCode(http.StatusOK)
+
+			return nil
+		},
+		Type: RouteType_POST,
+	})
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Deactivate an agent",
 		Path: "/agents/deactivate/{agentid}",
 		JWT:  true,
