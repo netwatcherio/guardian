@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"github.com/kataras/iris/v12"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"nw-guardian/internal/agent"
@@ -11,6 +12,47 @@ import (
 
 func addRouteSites(r *Router) []*Route {
 	var tempRoutes []*Route
+
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Update Site",
+		Path: "/sites/update/{siteid}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			sId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := site.Site{ID: sId}
+
+			cAgent := new(site.Site)
+			ctx.ReadJSON(&cAgent)
+
+			err = s.UpdateSiteDetails(r.DB, cAgent.Name, cAgent.Location, cAgent.Description)
+			if err != nil {
+				log.Error(err)
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			ctx.StatusCode(http.StatusOK)
+
+			return nil
+		},
+		Type: RouteType_POST,
+	})
+
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Sites",
 		Path: "/sites",

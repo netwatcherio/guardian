@@ -22,6 +22,31 @@ type Site struct {
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
+func (s *Site) UpdateSiteDetails(db *mongo.Database, newName, newLocation, newDescription string) error {
+	filter := bson.D{{"_id", s.ID}}
+	update := bson.D{
+		{"$set", bson.D{
+			{"name", newName},
+			{"location", newLocation},
+			{"description", newDescription},
+			{"updatedAt", time.Now()},
+		}},
+	}
+
+	_, err := db.Collection("sites").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	// Optionally, update the Site struct to reflect the new state
+	s.Name = newName
+	s.Location = newLocation
+	s.Description = newDescription
+	s.UpdatedAt = time.Now()
+
+	return nil
+}
+
 func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
 	member := SiteMember{
 		User: owner,
