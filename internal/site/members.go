@@ -31,6 +31,31 @@ type NewSiteMember struct {
 	Role  SiteMemberRole `json:"role"form:"role"`
 }
 
+type MemberInfo struct {
+	Email     string             `bson:"email"json:"email"` // email, will be used as username
+	FirstName string             `bson:"firstName"json:"firstName"`
+	LastName  string             `bson:"lastName"json:"lastName"`
+	Role      SiteMemberRole     `bson:"role"json:"role"`
+	ID        primitive.ObjectID `json:"id"bson:"_id"`
+}
+
+func (s *Site) GetMemberInfos(db *mongo.Database) ([]MemberInfo, error) {
+	var memberInfos []MemberInfo
+
+	for _, member := range s.Members {
+		var memberInfo MemberInfo
+		err := db.Collection("users").FindOne(context.TODO(), bson.M{"_id": member.User}).Decode(&memberInfo)
+		if err != nil {
+			// Handle the error, e.g., if the member is not found in the users collection
+			log.Error(err)
+			continue // or return nil, err if you prefer to stop on the first error
+		}
+		memberInfos = append(memberInfos, memberInfo)
+	}
+
+	return memberInfos, nil
+}
+
 // IsMember check if a user id is a member in the site
 func (s *Site) IsMember(id primitive.ObjectID) bool {
 	// check if the site contains the member with the provided id

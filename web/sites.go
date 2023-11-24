@@ -109,6 +109,46 @@ func addRouteSites(r *Router) []*Route {
 		},
 		Type: RouteType_POST,
 	})
+
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get MemberInfo",
+		Path: "/sites/{siteid}/memberinfo",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := site.Site{ID: siteId}
+			err = s.Get(r.DB)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			// Retrieve member info
+			memberInfos, err := s.GetMemberInfos(r.DB)
+			if err != nil {
+				// Handle the error. Depending on your requirement, you might want to still return the site info without member details
+				return ctx.JSON(err)
+			}
+
+			ctx.JSON(memberInfos)
+			return nil
+		},
+		Type: RouteType_GET,
+	})
+
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Site",
 		Path: "/sites/{siteid}",
