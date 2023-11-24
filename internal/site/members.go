@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -31,6 +32,15 @@ type NewSiteMember struct {
 	Role  SiteMemberRole `json:"role"form:"role"`
 }
 
+func (s *Site) GetMemberRole(memberID primitive.ObjectID) (SiteMemberRole, error) {
+	for _, member := range s.Members {
+		if member.User == memberID {
+			return member.Role, nil
+		}
+	}
+	return "", fmt.Errorf("member with ID %s not found", memberID.Hex())
+}
+
 type MemberInfo struct {
 	Email     string             `bson:"email"json:"email"` // email, will be used as username
 	FirstName string             `bson:"firstName"json:"firstName"`
@@ -50,6 +60,11 @@ func (s *Site) GetMemberInfos(db *mongo.Database) ([]MemberInfo, error) {
 			log.Error(err)
 			continue // or return nil, err if you prefer to stop on the first error
 		}
+		role, err := s.GetMemberRole(memberInfo.ID)
+		if err != nil {
+			log.Error(err)
+		}
+		memberInfo.Role = role
 		memberInfos = append(memberInfos, memberInfo)
 	}
 
