@@ -198,8 +198,11 @@ func (s *Site) Get(db *mongo.Database) error {
 	}
 
 	s.Name = site.Name
-	s.Members = site.Members
+	s.Description = site.Description
+	s.Location = site.Location
 	s.CreatedAt = site.CreatedAt
+	s.UpdatedAt = site.UpdatedAt
+	s.Members = site.Members
 
 	return nil
 }
