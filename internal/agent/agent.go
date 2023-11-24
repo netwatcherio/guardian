@@ -50,6 +50,23 @@ func (a *Agent) Initialize(db *mongo.Database) error {
 
 	return nil
 }
+
+func (a *Agent) Deactivate(db *mongo.Database) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	update := bson.D{
+		{"$set", bson.D{
+			{"initialized", false},
+			{"pin", GeneratePin(9)},
+		}},
+	}
+	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func (a *Agent) DeInitialize(db *mongo.Database) error {
 	var filter = bson.D{{"_id", a.ID}}
 
