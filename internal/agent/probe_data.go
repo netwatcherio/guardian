@@ -182,7 +182,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 	var combinedFilter bson.M = bson.M{"probe": c.ID}
 	if c.Agent != (primitive.ObjectID{0}) {
 		combinedFilter["agent"] = c.Agent
-		combinedFilter["type"] = c.Type
+		//combinedFilter["type"] = c.Type
 	}
 
 	if !req.Recent {

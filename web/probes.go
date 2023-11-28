@@ -44,7 +44,7 @@ func addRouteProbes(r *Router) []*Route {
 
 			dd[0].Agent = primitive.ObjectID{0}
 
-			data, err := dd[0].GetData(&agent.ProbeDataRequest{Recent: true}, r.DB)
+			data, err := dd[0].GetData(&agent.ProbeDataRequest{Recent: true, Limit: 1}, r.DB)
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func addRouteProbes(r *Router) []*Route {
 
 			dd[0].Agent = primitive.ObjectID{0}
 
-			data, err := dd[0].GetData(&agent.ProbeDataRequest{Recent: true}, r.DB)
+			data, err := dd[0].GetData(&agent.ProbeDataRequest{Recent: true, Limit: 1}, r.DB)
 			if err != nil {
 				return err
 			}
