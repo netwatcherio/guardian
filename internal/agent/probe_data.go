@@ -185,10 +185,16 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 		//combinedFilter["type"] = c.Type
 	}
 
+	var timestamp_field = "data.stop_timestamp"
+
+	if c.Type == ProbeType_NETWORKINFO || c.Type == ProbeType_SPEEDTEST || c.Type == ProbeType_SYSTEMINFO {
+		timestamp_field = "data.timestamp"
+	}
+
 	if !req.Recent {
-		opts.SetSort(bson.D{{"data.stop_timestamp", -1}})
+		opts.SetSort(bson.D{{timestamp_field, -1}})
 		timeFilter := bson.M{
-			"data.stop_timestamp": bson.M{
+			timestamp_field: bson.M{
 				"$gt": req.StartTimestamp,
 				"$lt": req.EndTimestamp,
 			},
@@ -197,7 +203,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 			combinedFilter[k] = v
 		}
 	} else {
-		opts = opts.SetSort(bson.D{{"data.stop_timestamp", -1}})
+		opts = opts.SetSort(bson.D{{timestamp_field, -1}})
 	}
 
 	cursor, err := db.Collection("probe_data").Find(context.TODO(), combinedFilter, opts)
