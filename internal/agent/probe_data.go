@@ -342,7 +342,7 @@ type RPerfResults struct {
 			SendInterval float64 `json:"send_interval"bson:"send_interval"`
 		} `json:"upload"bson:"upload"`
 	} `json:"config"bson:"config"`
-	Streams []struct {
+	/*Streams []struct {
 		Abandoned bool `json:"abandoned"bson:"abandoned"`
 		Failed    bool `json:"failed"bson:"failed"`
 		Intervals struct {
@@ -379,7 +379,7 @@ type RPerfResults struct {
 				PacketsSent              int     `json:"packets_sent"bson:"packets_sent"`
 			} `json:"summary"bson:"summary"`
 		} `json:"intervals"bson:"intervals"`
-	} `json:"streams"bson:"streams"`
+	} `json:"streams"bson:"streams"`*/
 	Success bool `json:"success"bson:"success"`
 	Summary struct {
 		BytesReceived            int     `json:"bytes_received"bson:"bytes_received"`
