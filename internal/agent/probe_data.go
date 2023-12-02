@@ -185,16 +185,16 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 		//combinedFilter["type"] = c.Type
 	}
 
-	var timestamp_field = "data.stop_timestamp"
+	var timestampField = "data.stop_timestamp"
 
 	if c.Type == ProbeType_NETWORKINFO || c.Type == ProbeType_SPEEDTEST || c.Type == ProbeType_SYSTEMINFO {
-		timestamp_field = "data.timestamp"
+		timestampField = "data.timestamp"
 	}
 
 	if !req.Recent {
-		opts.SetSort(bson.D{{timestamp_field, -1}})
+		opts.SetSort(bson.D{{timestampField, -1}})
 		timeFilter := bson.M{
-			timestamp_field: bson.M{
+			timestampField: bson.M{
 				"$gt": req.StartTimestamp,
 				"$lt": req.EndTimestamp,
 			},
@@ -203,7 +203,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 			combinedFilter[k] = v
 		}
 	} else {
-		opts = opts.SetSort(bson.D{{timestamp_field, -1}})
+		opts = opts.SetSort(bson.D{{timestampField, -1}})
 	}
 
 	cursor, err := db.Collection("probe_data").Find(context.TODO(), combinedFilter, opts)
@@ -275,32 +275,32 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 }*/
 
 type MtrResult struct {
-	StartTimestamp time.Time `json:"start_timestamp"bson:"start_timestamp"`
-	StopTimestamp  time.Time `json:"stop_timestamp"bson:"stop_timestamp"`
+	StartTimestamp time.Time `json:"start_timestamp" bson:"start_timestamp"`
+	StopTimestamp  time.Time `json:"stop_timestamp" bson:"stop_timestamp"`
 	Report         struct {
 		Info struct {
 			Target struct {
-				IP       string `json:"ip"`
-				Hostname string `json:"hostname"`
-			} `json:"target"`
-		} `json:"info"`
+				IP       string `json:"ip" bson:"ip"`
+				Hostname string `json:"hostname" bson:"hostname"`
+			} `json:"target" bson:"target"`
+		} `json:"info" bson:"info"`
 		Hops []struct {
-			TTL   int `json:"ttl"`
+			TTL   int `json:"ttl" bson:"ttl"`
 			Hosts []struct {
-				IP       string `json:"ip"`
-				Hostname string `json:"hostname"`
-			} `json:"hosts"`
-			Extensions []string `json:"extensions"`
-			LossPct    string   `json:"loss_pct"`
-			Sent       int      `json:"sent"`
-			Last       string   `json:"last"`
-			Recv       int      `json:"recv"`
-			Avg        string   `json:"avg"`
-			Best       string   `json:"best"`
-			Worst      string   `json:"worst"`
-			StdDev     string   `json:"stddev"`
-		} `json:"hops"`
-	} `json:"report"bson:"report"`
+				IP       string `json:"ip" bson:"ip"`
+				Hostname string `json:"hostname" bson:"hostname"`
+			} `json:"hosts" bson:"hosts"`
+			Extensions []string `json:"extensions" bson:"extensions"`
+			LossPct    string   `json:"loss_pct" bson:"loss_pct"`
+			Sent       int      `json:"sent" bson:"sent"`
+			Last       string   `json:"last" bson:"last"`
+			Recv       int      `json:"recv" bson:"recv"`
+			Avg        string   `json:"avg" bson:"avg"`
+			Best       string   `json:"best" bson:"best"`
+			Worst      string   `json:"worst" bson:"worst"`
+			StdDev     string   `json:"stddev" bson:"stddev"`
+		} `json:"hops" bson:"hops"`
+	} `json:"report" bson:"report"`
 }
 
 type NetResult struct {
