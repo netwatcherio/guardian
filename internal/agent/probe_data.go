@@ -275,40 +275,34 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 }*/
 
 type MtrResult struct {
-	StartTimestamp time.Time `json:"start_timestamp" bson:"start_timestamp"`
-	StopTimestamp  time.Time `json:"stop_timestamp" bson:"stop_timestamp"`
-	Triggered      bool      `json:"triggered" bson:"triggered"`
-	Report         MtrReport `json:"report" bson:"report"`
+	StartTimestamp time.Time `json:"start_timestamp"bson:"start_timestamp"`
+	StopTimestamp  time.Time `json:"stop_timestamp"bson:"stop_timestamp"`
+	Report         struct {
+		Info struct {
+			Target struct {
+				IP       string `json:"ip"`
+				Hostname string `json:"hostname"`
+			} `json:"target"`
+		} `json:"info"`
+		Hops []struct {
+			TTL   int `json:"ttl"`
+			Hosts []struct {
+				IP       string `json:"ip"`
+				Hostname string `json:"hostname"`
+			} `json:"hosts"`
+			Extensions []string `json:"extensions"`
+			LossPct    string   `json:"loss_pct"`
+			Sent       int      `json:"sent"`
+			Last       string   `json:"last"`
+			Recv       int      `json:"recv"`
+			Avg        string   `json:"avg"`
+			Best       string   `json:"best"`
+			Worst      string   `json:"worst"`
+			StdDev     string   `json:"stddev"`
+		} `json:"hops"`
+	} `json:"report"bson:"report"`
 }
 
-type MtrReport struct {
-	Mtr struct {
-		Src        string `json:"src" bson:"src"`
-		Dst        string `json:"dst" bson:"dst"`
-		Tos        int    `json:"tos" bson:"tos"`     // Assuming 'tos' is an integer
-		Tests      int    `json:"tests" bson:"tests"` // Assuming 'tests' is an integer
-		Psize      string `json:"psize" bson:"psize"`
-		Bitpattern string `json:"bitpattern" bson:"bitpattern"`
-	} `json:"mtr" bson:"mtr"`
-	Hubs []struct {
-		Count int     `json:"count" bson:"count"` // Assuming 'count' is an integer
-		Host  string  `json:"host" bson:"host"`
-		ASN   string  `json:"ASN" bson:"ASN"`
-		Loss  float64 `json:"Loss%" bson:"Loss%"`
-		Drop  int     `json:"Drop" bson:"Drop"`
-		Rcv   int     `json:"Rcv" bson:"Rcv"`
-		Snt   int     `json:"Snt" bson:"Snt"`
-		Best  float64 `json:"Best" bson:"Best"`
-		Avg   float64 `json:"Avg" bson:"Avg"`
-		Wrst  float64 `json:"Wrst" bson:"Wrst"`
-		StDev float64 `json:"StDev" bson:"StDev"`
-		Gmean float64 `json:"Gmean" bson:"Gmean"`
-		Jttr  float64 `json:"Jttr" bson:"Jttr"`
-		Javg  float64 `json:"Javg" bson:"Javg"`
-		Jmax  float64 `json:"Jmax" bson:"Jmax"`
-		Jint  float64 `json:"Jint" bson:"Jint"`
-	} `json:"hubs" bson:"hubs"`
-}
 type NetResult struct {
 	LocalAddress     string    `json:"local_address"bson:"local_address"`
 	DefaultGateway   string    `json:"default_gateway"bson:"default_gateway"`
