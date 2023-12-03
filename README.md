@@ -8,10 +8,12 @@ Guardian NetWatcher is the backend component of the NetWatcher suite. It facilit
 
 The following environment variables are required for running the application:
 
+```
 LISTEN=[ip_address:port](ip_address:port)
-MONGO\_URI=<mongodb\_connection\_string>
-MAIN_DB=<database\_name>
-KEY=<your\_secret\_key>```
+MONGO_URI=<mongodb_connection_string>
+MAIN_DB=<database_name>
+KEY=<your_secret_key>```
+```
 
 
 **Note**: Replace the values with your actual configuration. Do not use example values in production.
