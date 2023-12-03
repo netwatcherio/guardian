@@ -12,7 +12,7 @@ The following environment variables are required for running the application:
 LISTEN=[ip_address:port](ip_address:port)
 MONGO_URI=<mongodb_connection_string>
 MAIN_DB=<database_name>
-KEY=<your_secret_key>```
+KEY=<your_secret_key>
 ```
 
 
