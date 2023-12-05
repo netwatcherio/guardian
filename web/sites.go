@@ -2,12 +2,14 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"nw-guardian/internal/agent"
 	"nw-guardian/internal/site"
+	"nw-guardian/internal/users"
 )
 
 func addRouteSites(r *Router) []*Route {
@@ -199,9 +201,54 @@ func addRouteSites(r *Router) []*Route {
 	})
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Add Member",
-		Path: "/sites/members",
+		Path: "/sites/{siteid}/invite",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
+
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			info := site.MemberInfo{}
+
+			err = ctx.ReadJSON(&info)
+			if err != nil {
+				return err
+			}
+
+			usr := users.User{Email: info.Email}
+			uuu, err := usr.FromEmail(r.DB)
+			if err != nil {
+				// todo handle if no users exist with that email
+				return err
+			}
+
+			info.ID = uuu.ID
+
+			if info.Role == site.SiteMemberRole_OWNER {
+				return errors.New("only the owner can add owners")
+			}
+
+			s := site.Site{ID: siteId}
+			err = s.Get(r.DB)
+			if err != nil {
+				return err
+			}
+			err = s.AddMember(info.ID, info.Role, r.DB)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		},
 		Type: RouteType_POST,
