@@ -185,16 +185,16 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 		//combinedFilter["type"] = c.Type
 	}
 
-	var timestamp_field = "data.stop_timestamp"
+	var timestampField = "data.stop_timestamp"
 
 	if c.Type == ProbeType_NETWORKINFO || c.Type == ProbeType_SPEEDTEST || c.Type == ProbeType_SYSTEMINFO {
-		timestamp_field = "data.timestamp"
+		timestampField = "data.timestamp"
 	}
 
 	if !req.Recent {
-		opts.SetSort(bson.D{{timestamp_field, -1}})
+		opts.SetSort(bson.D{{timestampField, -1}})
 		timeFilter := bson.M{
-			timestamp_field: bson.M{
+			timestampField: bson.M{
 				"$gt": req.StartTimestamp,
 				"$lt": req.EndTimestamp,
 			},
@@ -203,7 +203,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 			combinedFilter[k] = v
 		}
 	} else {
-		opts = opts.SetSort(bson.D{{timestamp_field, -1}})
+		opts = opts.SetSort(bson.D{{timestampField, -1}})
 	}
 
 	cursor, err := db.Collection("probe_data").Find(context.TODO(), combinedFilter, opts)
@@ -277,38 +277,32 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 type MtrResult struct {
 	StartTimestamp time.Time `json:"start_timestamp" bson:"start_timestamp"`
 	StopTimestamp  time.Time `json:"stop_timestamp" bson:"stop_timestamp"`
-	Triggered      bool      `json:"triggered" bson:"triggered"`
-	Report         MtrReport `json:"report" bson:"report"`
+	Report         struct {
+		Info struct {
+			Target struct {
+				IP       string `json:"ip" bson:"ip"`
+				Hostname string `json:"hostname" bson:"hostname"`
+			} `json:"target" bson:"target"`
+		} `json:"info" bson:"info"`
+		Hops []struct {
+			TTL   int `json:"ttl" bson:"ttl"`
+			Hosts []struct {
+				IP       string `json:"ip" bson:"ip"`
+				Hostname string `json:"hostname" bson:"hostname"`
+			} `json:"hosts" bson:"hosts"`
+			Extensions []string `json:"extensions" bson:"extensions"`
+			LossPct    string   `json:"loss_pct" bson:"loss_pct"`
+			Sent       int      `json:"sent" bson:"sent"`
+			Last       string   `json:"last" bson:"last"`
+			Recv       int      `json:"recv" bson:"recv"`
+			Avg        string   `json:"avg" bson:"avg"`
+			Best       string   `json:"best" bson:"best"`
+			Worst      string   `json:"worst" bson:"worst"`
+			StdDev     string   `json:"stddev" bson:"stddev"`
+		} `json:"hops" bson:"hops"`
+	} `json:"report" bson:"report"`
 }
 
-type MtrReport struct {
-	Mtr struct {
-		Src        string `json:"src" bson:"src"`
-		Dst        string `json:"dst" bson:"dst"`
-		Tos        int    `json:"tos" bson:"tos"`     // Assuming 'tos' is an integer
-		Tests      int    `json:"tests" bson:"tests"` // Assuming 'tests' is an integer
-		Psize      string `json:"psize" bson:"psize"`
-		Bitpattern string `json:"bitpattern" bson:"bitpattern"`
-	} `json:"mtr" bson:"mtr"`
-	Hubs []struct {
-		Count int     `json:"count" bson:"count"` // Assuming 'count' is an integer
-		Host  string  `json:"host" bson:"host"`
-		ASN   string  `json:"ASN" bson:"ASN"`
-		Loss  float64 `json:"Loss%" bson:"Loss%"`
-		Drop  int     `json:"Drop" bson:"Drop"`
-		Rcv   int     `json:"Rcv" bson:"Rcv"`
-		Snt   int     `json:"Snt" bson:"Snt"`
-		Best  float64 `json:"Best" bson:"Best"`
-		Avg   float64 `json:"Avg" bson:"Avg"`
-		Wrst  float64 `json:"Wrst" bson:"Wrst"`
-		StDev float64 `json:"StDev" bson:"StDev"`
-		Gmean float64 `json:"Gmean" bson:"Gmean"`
-		Jttr  float64 `json:"Jttr" bson:"Jttr"`
-		Javg  float64 `json:"Javg" bson:"Javg"`
-		Jmax  float64 `json:"Jmax" bson:"Jmax"`
-		Jint  float64 `json:"Jint" bson:"Jint"`
-	} `json:"hubs" bson:"hubs"`
-}
 type NetResult struct {
 	LocalAddress     string    `json:"local_address"bson:"local_address"`
 	DefaultGateway   string    `json:"default_gateway"bson:"default_gateway"`
@@ -348,7 +342,7 @@ type RPerfResults struct {
 			SendInterval float64 `json:"send_interval"bson:"send_interval"`
 		} `json:"upload"bson:"upload"`
 	} `json:"config"bson:"config"`
-	Streams []struct {
+	/*Streams []struct {
 		Abandoned bool `json:"abandoned"bson:"abandoned"`
 		Failed    bool `json:"failed"bson:"failed"`
 		Intervals struct {
@@ -385,7 +379,7 @@ type RPerfResults struct {
 				PacketsSent              int     `json:"packets_sent"bson:"packets_sent"`
 			} `json:"summary"bson:"summary"`
 		} `json:"intervals"bson:"intervals"`
-	} `json:"streams"bson:"streams"`
+	} `json:"streams"bson:"streams"`*/
 	Success bool `json:"success"bson:"success"`
 	Summary struct {
 		BytesReceived            int     `json:"bytes_received"bson:"bytes_received"`
