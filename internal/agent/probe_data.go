@@ -92,6 +92,10 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		return nil, err
 	}
 
+	if len(probe) == 0 {
+		return nil, errors.New("probe not found")
+	}
+
 	switch probe[0].Type { // todo
 	case ProbeType_RPERF:
 		jsonData, err := json.Marshal(pd.Data)
