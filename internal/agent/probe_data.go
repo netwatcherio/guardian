@@ -23,6 +23,20 @@ type ProbeData struct {
 	Data      interface{}        `json:"data,omitempty" bson:"data,omitempty"`
 }
 
+func DeleteProbeDataByProbeID(db *mongo.Database, probeID primitive.ObjectID) error {
+	// Convert the string ID to an ObjectID
+	// Create a filter to match the document by ID
+	filter := bson.M{"probe": probeID}
+
+	// Perform the deletion
+	_, err := db.Collection("probe_data").DeleteMany(context.TODO(), filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (pd *ProbeData) Create(db *mongo.Database) error {
 	// todo handle to check if agent id is set and all that... or should it be in the api section??
 	pd.ID = primitive.NewObjectID()

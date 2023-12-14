@@ -13,6 +13,38 @@ import (
 func addRouteProbes(r *Router) []*Route {
 	var tempRoutes []*Route
 	tempRoutes = append(tempRoutes, &Route{
+		Name: "Delete Probe",
+		Path: "/probe/delete/{pid}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			aId, err := primitive.ObjectIDFromHex(params.Get("pid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			p := agent.Probe{ID: aId}
+			err = p.Delete(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+			ctx.StatusCode(http.StatusOK)
+			return nil
+		},
+		Type: RouteType_GET,
+	})
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Get NetworkInfo Probe",
 		Path: "/netinfo/{agentid}",
 		JWT:  true,

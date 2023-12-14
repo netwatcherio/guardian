@@ -57,6 +57,36 @@ type ProbeConfig struct {
 	Pending  time.Time     `json:"pending" bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
 }
 
+func DeleteProbesByAgentID(db *mongo.Database, agentID primitive.ObjectID) error {
+	// todo if probe is deleted, delete associated data
+	// todo if agent is delete, delete all probes, and data
+
+	p := Probe{Agent: agentID}
+	get, err := p.Get(db)
+	if err != nil {
+		return err
+	}
+
+	for _, probe := range get {
+		err := DeleteProbeDataByProbeID(db, probe.ID)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
+	// Convert the string ID to an ObjectID
+	// Create a filter to match the document by ID
+	filter := bson.M{"_id": agentID}
+
+	// Perform the deletion
+	_, err = db.Collection("probes").DeleteMany(context.TODO(), filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type ProbeType string
 
 const (

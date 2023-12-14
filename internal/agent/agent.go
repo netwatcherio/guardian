@@ -74,6 +74,24 @@ func (a *Agent) Initialize(db *mongo.Database) error {
 	return nil
 }
 
+// DeleteAgent check based on provided agent ID in check struct
+func DeleteAgent(db *mongo.Database, agentID primitive.ObjectID) error {
+	// filter based on check ID
+	var filter = bson.D{{"_id", agentID}}
+
+	err := DeleteProbesByAgentID(db, agentID)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Collection("agents").DeleteMany(context.TODO(), filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (a *Agent) Deactivate(db *mongo.Database) error {
 	var filter = bson.D{{"_id", a.ID}}
 
