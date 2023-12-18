@@ -113,3 +113,39 @@ func (s *Site) AddMember(id primitive.ObjectID, role SiteMemberRole, db *mongo.D
 	}
 	return nil
 }
+
+// RemoveMember removes a member from the site and updates the document
+func (s *Site) RemoveMember(id primitive.ObjectID, db *mongo.Database) error {
+	// Check if the member exists
+	if !s.IsMember(id) {
+		return errors.New("member not found")
+	}
+
+	// Remove the member with the provided ID
+	var updatedMembers []SiteMember
+	for _, member := range s.Members {
+		if member.User != id {
+			updatedMembers = append(updatedMembers, member)
+		}
+	}
+	s.Members = updatedMembers
+
+	// Log the updated members
+	j, _ := json.Marshal(s.Members)
+	log.Warnf("%s", j)
+
+	// Update the site document in the database
+	sites := db.Collection("sites")
+	_, err := sites.UpdateOne(
+		context.TODO(),
+		bson.M{"_id": s.ID},
+		bson.D{
+			{"$set", bson.D{{"members", s.Members}}},
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
+}

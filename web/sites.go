@@ -254,13 +254,62 @@ func addRouteSites(r *Router) []*Route {
 		Type: RouteType_POST,
 	})
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Delete Member",
-		Path: "/sites/members/{siteid}/{userid}",
+		Name: "Remove Member",
+		Path: "/sites/{siteid}/remove",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
+
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			info := site.MemberInfo{}
+
+			err = ctx.ReadJSON(&info)
+			if err != nil {
+				return err
+			}
+
+			s := site.Site{ID: siteId}
+			err = s.Get(r.DB)
+			if err != nil {
+				return err
+			}
+
+			if s.IsMember(info.ID) {
+				return errors.New("user is not a member of this site")
+			}
+
+			role, err := s.GetMemberRole(info.ID)
+			if err != nil {
+				return err
+			}
+
+			if role == site.SiteMemberRole_OWNER {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return errors.New("the owner cannot be removed")
+			}
+
+			err = s.RemoveMember(info.ID, r.DB)
+			if err != nil {
+				return err
+			}
+
+			ctx.StatusCode(http.StatusOK)
+
 			return nil
 		},
-		Type: "DELETE",
+		Type: RouteType_POST, // or RouteType_DELETE if appropriate for your API design
 	})
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "New Agent Group",
