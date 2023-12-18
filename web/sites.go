@@ -336,7 +336,7 @@ func addRouteSites(r *Router) []*Route {
 				return err
 			}
 
-			if s.IsMember(info.ID) {
+			if !s.IsMember(info.ID) {
 				return errors.New("user is not a member of this site")
 			}
 
