@@ -49,6 +49,38 @@ type MemberInfo struct {
 	ID        primitive.ObjectID `json:"id"bson:"_id"`
 }
 
+// UpdateMemberRole updates the role of a member in the site and the database
+func (s *Site) UpdateMemberRole(memberID primitive.ObjectID, newRole SiteMemberRole, db *mongo.Database) error {
+	// Find and update the member's role
+	found := false
+	for i, member := range s.Members {
+		if member.User == memberID {
+			s.Members[i].Role = newRole
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New("member not found")
+	}
+
+	// Update the site document in the database
+	sites := db.Collection("sites")
+	_, err := sites.UpdateOne(
+		context.TODO(),
+		bson.M{"_id": s.ID},
+		bson.D{
+			{"$set", bson.D{{"members", s.Members}}},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Site) GetMemberInfos(db *mongo.Database) ([]MemberInfo, error) {
 	var memberInfos []MemberInfo
 

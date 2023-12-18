@@ -200,6 +200,56 @@ func addRouteSites(r *Router) []*Route {
 		Type: RouteType_GET,
 	})
 	tempRoutes = append(tempRoutes, &Route{
+		Name: "Update Member Role",
+		Path: "/sites/{siteid}/update_role",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+			siteId, err := primitive.ObjectIDFromHex(params.Get("siteid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			info := site.MemberInfo{}
+
+			err = ctx.ReadJSON(&info)
+			if err != nil {
+				return err
+			}
+
+			s := site.Site{ID: siteId}
+			err = s.Get(r.DB)
+			if err != nil {
+				return err
+			}
+
+			if !s.IsMember(info.ID) {
+				return errors.New("user is not a member of this site")
+			}
+
+			// Update the member's role
+			err = s.UpdateMemberRole(info.ID, info.Role, r.DB)
+			if err != nil {
+				return err
+			}
+
+			ctx.StatusCode(http.StatusOK)
+
+			return nil
+		},
+		Type: RouteType_POST, // POST is used for updating data
+	})
+
+	tempRoutes = append(tempRoutes, &Route{
 		Name: "Add Member",
 		Path: "/sites/{siteid}/invite",
 		JWT:  true,
