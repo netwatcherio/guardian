@@ -280,6 +280,75 @@ func (c *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
 	return agentCheck, nil
 }
 
+func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
+	var filter = bson.D{{"agent", c.Agent}}
+	if c.Type != "" {
+		filter = bson.D{{"agent", c.Agent}, {"type", c.Type}}
+	}
+
+	// this needs to be able to populate the target field with the ip/&port of the target based on
+	// the public ip we grabbed from the agent previously, etc.
+
+	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+	var results []bson.D
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		return nil, err
+	}
+	var agentCheck []*Probe
+
+	for _, rb := range results {
+		m, err := bson.Marshal(&rb)
+		if err != nil {
+			log.Errorf("2 %s", err)
+			return nil, err
+		}
+		var tC Probe
+		err = bson.Unmarshal(m, &tC)
+		if err != nil {
+			return nil, err
+		}
+
+		if tC.Config.Target[0].Agent != (primitive.ObjectID{}) {
+			// todo get the latest public ip of the agent, and use that as the target
+			check := Probe{Agent: c.Agent, Type: ProbeType_NETWORKINFO}
+
+			// .Get will update it self instead of returning a list with a first object
+			dd, err := check.Get(db)
+			if err != nil {
+				return nil, err
+			}
+
+			dd[0].Agent = primitive.ObjectID{0}
+
+			data, err := dd[0].GetData(&ProbeDataRequest{Recent: true, Limit: 1}, db)
+			if err != nil {
+				return nil, err
+			}
+
+			// todo only return first element, we don't care currently about previous IPs and such...
+			lastElement := data[len(data)-1] // Get the last element of the slice
+
+			netResult, ok := lastElement.Data.(NetResult) // Type assertion
+			if !ok {
+				// Handle the error, the type assertion failed
+				log.Fatalf("Type assertion failed")
+			}
+
+			// todo this needs to be fixed for if the probe is a rperf probe,
+			// todo because the target requires a port to be included
+
+			tC.Config.Target[0].Target = netResult.PublicAddress
+		}
+
+		// append the target to the probe
+		agentCheck = append(agentCheck, &tC)
+	}
+	return agentCheck, nil
+}
+
 func (c *Probe) Update(db *mongo.Database) error {
 	var filter = bson.D{{"_id", c.ID}}
 

@@ -110,7 +110,9 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 				}
 
 				probe := agent.Probe{Agent: session.ID}
-				probes, _ := probe.GetAll(r.DB)
+				// todo change this to build based on if the probe is an agent/group type probe
+				// todo add group type probes ?? or just use agent type probes for groups??
+				probes, _ := probe.GetAllProbesForAgent(r.DB)
 
 				marshal, err := json.Marshal(probes)
 				if err != nil {

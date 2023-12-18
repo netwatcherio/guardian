@@ -193,7 +193,7 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 // GetData requires a checkrequest to be sent, if agent id is set,
 // it will require the type to be sent in check, otherwise
 // the check id will be used
-func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData, error) {
+func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeData, error) {
 	opts := options.Find().SetLimit(req.Limit)
 
 	// Combined filter
@@ -238,7 +238,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 		return nil, errors.New("no data matches the provided check id")
 	}
 
-	var checkData []*ProbeData
+	var checkData []ProbeData
 
 	for _, r := range results {
 		var cData ProbeData
@@ -252,7 +252,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]*ProbeData
 			log.Errorf("Error unmarshaling data: %s", err)
 			return nil, err
 		}
-		checkData = append(checkData, &cData)
+		checkData = append(checkData, cData)
 	}
 
 	return checkData, nil
