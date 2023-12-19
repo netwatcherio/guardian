@@ -276,7 +276,7 @@ func (c *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 		return nil, err
 	}
 
-	fmt.Println(results)
+	//fmt.Println(results)
 	var agentChecks []*Probe
 
 	for _, r := range results {

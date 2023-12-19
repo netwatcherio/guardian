@@ -213,7 +213,7 @@ func addRouteProbes(r *Router) []*Route {
 				return ctx.JSON(err)
 			}
 
-			log.Info(check)
+			//log.Info(check)
 			err = ctx.JSON(&cc)
 			if err != nil {
 				return err
@@ -373,7 +373,7 @@ func addRouteProbes(r *Router) []*Route {
 				return ctx.JSON(err)
 			}
 
-			log.Info(check)
+			//log.Info(check)
 
 			err = ctx.JSON(probes)
 			if err != nil {
