@@ -314,7 +314,7 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 		if len(tC.Config.Target) > 0 {
 			if tC.Config.Target[0].Agent != (primitive.ObjectID{}) {
 				// todo get the latest public ip of the agent, and use that as the target
-				check := Probe{Agent: c.Agent, Type: ProbeType_NETWORKINFO}
+				check := Probe{Agent: tC.Config.Target[0].Agent, Type: ProbeType_NETWORKINFO}
 
 				// .Get will update it self instead of returning a list with a first object
 				dd, err := check.Get(db)
