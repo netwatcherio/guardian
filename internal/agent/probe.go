@@ -311,36 +311,60 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 			return nil, err
 		}
 
-		if tC.Config.Target[0].Agent != (primitive.ObjectID{}) {
-			// todo get the latest public ip of the agent, and use that as the target
-			check := Probe{Agent: c.Agent, Type: ProbeType_NETWORKINFO}
+		if len(tC.Config.Target) > 0 {
+			if tC.Config.Target[0].Agent != (primitive.ObjectID{}) {
+				// todo get the latest public ip of the agent, and use that as the target
+				check := Probe{Agent: c.Agent, Type: ProbeType_NETWORKINFO}
 
-			// .Get will update it self instead of returning a list with a first object
-			dd, err := check.Get(db)
-			if err != nil {
-				return nil, err
+				// .Get will update it self instead of returning a list with a first object
+				dd, err := check.Get(db)
+				if err != nil {
+					return nil, err
+				}
+
+				dd[0].Agent = primitive.ObjectID{0}
+				data, err := dd[0].GetData(&ProbeDataRequest{Recent: true, Limit: 1}, db)
+				if err != nil {
+					log.Warnf(err.Error())
+					return nil, err
+				}
+
+				// todo only return first element, we don't care currently about previous IPs and such...
+				lastElement := data[len(data)-1]
+
+				var netResult NetResult
+				switch v := lastElement.Data.(type) {
+				case primitive.D:
+					// Marshal primitive.D into BSON bytes
+					bsonData, err := bson.Marshal(v)
+					if err != nil {
+						log.Fatalf("Marshal failed: %v", err)
+					}
+
+					// Unmarshal BSON bytes into NetResult
+					err = bson.Unmarshal(bsonData, &netResult)
+					if err != nil {
+						log.Fatalf("Unmarshal failed: %v", err)
+					}
+				case primitive.M:
+					// Data is in the form of primitive.M
+					bsonData, err := bson.Marshal(v)
+					if err != nil {
+						log.Fatalf("Marshal failed: %v", err)
+					}
+					err = bson.Unmarshal(bsonData, &netResult)
+					if err != nil {
+						log.Fatalf("Unmarshal failed: %v", err)
+					}
+				default:
+					log.Fatalf("Data is neither primitive.D nor primitive.M")
+				}
+
+				// todo this needs to be fixed for if the probe is a rperf probe,
+				// todo because the target requires a port to be included
+
+				tC.Config.Target[0].Target = netResult.PublicAddress
 			}
-
-			dd[0].Agent = primitive.ObjectID{0}
-
-			data, err := dd[0].GetData(&ProbeDataRequest{Recent: true, Limit: 1}, db)
-			if err != nil {
-				return nil, err
-			}
-
-			// todo only return first element, we don't care currently about previous IPs and such...
-			lastElement := data[len(data)-1] // Get the last element of the slice
-
-			netResult, ok := lastElement.Data.(NetResult) // Type assertion
-			if !ok {
-				// Handle the error, the type assertion failed
-				log.Fatalf("Type assertion failed")
-			}
-
-			// todo this needs to be fixed for if the probe is a rperf probe,
-			// todo because the target requires a port to be included
-
-			tC.Config.Target[0].Target = netResult.PublicAddress
 		}
 
 		// append the target to the probe
