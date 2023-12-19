@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -113,77 +112,116 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 		return nil, errors.New("no targets defined in probe config")
 	}
 
-	/*get, err := c.Get(db)
+	c.Type = ""
+
+	get, err := c.Get(db)
 	if err != nil {
 		return nil, err
-	}*/
+	}
 
 	var similarProbes []*Probe
 
-	for _, target := range c.Config.Target {
-		// Skip this target if it is part of a group.
-		if (target.Group != primitive.ObjectID{0}) {
-			continue
+	var tt = c.Config.Target[0]
+
+	if tt.Agent != (primitive.ObjectID{}) {
+		for _, probe := range get {
+			if len(probe.Config.Target) == 0 {
+				continue
+			}
+			if probe.Config.Target[0].Agent == c.Config.Target[0].Agent {
+				similarProbes = append(similarProbes, probe)
+			}
+		}
+	} else {
+
+		if (tt.Group != primitive.ObjectID{0}) {
+			log.Errorf("group probes not supported yet")
 		}
 
-		var newT = strings.Split(target.Target, ":")
-		var ttArget = target.Target
-		if len(strings.Split(target.Target, ":")) >= 2 {
+		var newT = strings.Split(tt.Target, ":")
+		var ttArget = tt.Target
+		if len(strings.Split(tt.Target, ":")) >= 2 {
 			ttArget = newT[0]
 		}
 
-		if (target.Group != primitive.ObjectID{0}) {
-			continue
+		for _, probe := range get {
+			if len(probe.Config.Target) == 0 {
+				continue
+			}
+			b := probe.Config.Target[0].Target == ttArget
+			if b {
+				similarProbes = append(similarProbes, probe)
+			}
 		}
+		/*for _, target := range c.Config.Target {
+			// Skip this target if it is part of a group.
+			if (target.Group != primitive.ObjectID{0}) {
+				continue
+			}
 
-		// Initialize the filter
-		filter := bson.M{
-			"config.target.agent": target.Agent,
-		}
+			var newT = strings.Split(target.Target, ":")
+			var ttArget = target.Target
+			if len(strings.Split(target.Target, ":")) >= 2 {
+				ttArget = newT[0]
+			}
 
-		// Check if an agent is defined and set the filter accordingly
+			if (target.Group != primitive.ObjectID{0}) {
+				continue
+			}
 
-		if (target.Agent != primitive.ObjectID{0}) {
-			// If an agent is defined, use it in the filter instead of target host
-			filter["config.target.agent"] = target.Agent
-		} else {
+			for _, probe := range get {
+				if probe.Config.Target[0].Target == c.Config.Target[0].Agent {
+					similarProbes = append(similarProbes, probe)
+				}
+			}
+
+			// Initialize the filter
+			filter := bson.M{
+				"config.target.agent": target.Agent,
+			}
+
+			// Check if an agent is defined and set the filter accordingly
+
+			if (target.Agent != primitive.ObjectID{0}) {
+				// If an agent is defined, use it in the filter instead of target host
+				filter["config.target.agent"] = target.Agent
+			} else {
 			// If no agent is defined, build the filter to find probes with the same target host
 			filter["config.target"] = bson.M{
 				"$elemMatch": bson.M{
 					"target": bson.M{"$regex": regexp.QuoteMeta(ttArget), "$options": "i"}, // The "i" option is for case-insensitive matching
-					"agent":  primitive.ObjectID{},                                         // Assuming you want an empty ObjectID here
-					"group":  primitive.ObjectID{},                                         // Ensure the target is not part of a group
 				},
 			}
-		}
-
-		// Query the database for probes with matching targets.
-		cursor, err := db.Collection("probes").Find(context.TODO(), filter)
-		if err != nil {
-			return nil, err
-		}
-
-		var results []bson.D
-		if err := cursor.All(context.TODO(), &results); err != nil {
-			return nil, err
-		}
-
-		for _, r := range results {
-
-			var pData Probe
-			doc, err := bson.Marshal(r)
-			if err != nil {
-				log.Errorf("Error marshalling: %s", err)
-				continue // Skip this result on error.
-			}
-			err = bson.Unmarshal(doc, &pData)
-			if err != nil {
-				log.Errorf("Error unmarshalling: %s", err)
-				continue // Skip this result on error.
 			}
 
-			similarProbes = append(similarProbes, &pData)
-		}
+			// Query the database for probes with matching targets.
+			cursor, err := db.Collection("probes").Find(context.TODO(), filter)
+			if err != nil {
+				return nil, err
+			}
+
+			var results []bson.D
+			if err := cursor.All(context.TODO(), &results); err != nil {
+				return nil, err
+			}
+
+			for _, r := range results {
+
+				var pData Probe
+				doc, err := bson.Marshal(r)
+				if err != nil {
+					log.Errorf("Error marshalling: %s", err)
+					continue // Skip this result on error.
+				}
+				err = bson.Unmarshal(doc, &pData)
+				if err != nil {
+					log.Errorf("Error unmarshalling: %s", err)
+					continue // Skip this result on error.
+				}
+
+				similarProbes = append(similarProbes, &pData)
+			}
+		}*/
 	}
 
 	if len(similarProbes) <= 0 {
