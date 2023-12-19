@@ -113,10 +113,10 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 		return nil, errors.New("no targets defined in probe config")
 	}
 
-	get, err := c.Get(db)
+	/*get, err := c.Get(db)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
 	var similarProbes []*Probe
 
@@ -132,16 +132,29 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 			ttArget = newT[0]
 		}
 
-		// Build the filter to find probes with the same target and agent.
+		if (target.Group != primitive.ObjectID{0}) {
+			continue
+		}
+
+		// Initialize the filter
 		filter := bson.M{
-			"config.target": bson.M{
+			"config.target.agent": target.Agent,
+		}
+
+		// Check if an agent is defined and set the filter accordingly
+
+		if (target.Agent != primitive.ObjectID{0}) {
+			// If an agent is defined, use it in the filter instead of target host
+			filter["config.target.agent"] = target.Agent
+		} else {
+			// If no agent is defined, build the filter to find probes with the same target host
+			filter["config.target"] = bson.M{
 				"$elemMatch": bson.M{
 					"target": bson.M{"$regex": regexp.QuoteMeta(ttArget), "$options": "i"}, // The "i" option is for case-insensitive matching
 					"agent":  primitive.ObjectID{},                                         // Assuming you want an empty ObjectID here
 					"group":  primitive.ObjectID{},                                         // Ensure the target is not part of a group
 				},
-			},
-			"agent": get[0].Agent,
+			}
 		}
 
 		// Query the database for probes with matching targets.
