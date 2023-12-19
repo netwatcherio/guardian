@@ -388,6 +388,7 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 
 				lastElement := data[len(data)-1]
 				var netResult NetResult
+				// todo this needs to be fixed for if the probe is a rperf probe,
 				if a.PublicIPOverride != "" {
 					netResult.PublicAddress = a.PublicIPOverride
 				} else {
@@ -419,10 +420,26 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 					}
 				}
 
-				// todo this needs to be fixed for if the probe is a rperf probe,
-				// todo because the target requires a port to be included
+				if tC.Type == ProbeType_RPERF {
+					// todo get rperf server based on the probe's agent ID, get the probe information for the "rperf server"
+					// todo and use that as the target and account for the public ip or ip override
+					// todo this is a bit of a hack, but it works for now
+					var pp = Probe{Agent: tC.Config.Target[0].Agent, Type: ProbeType_RPERF}
+					agent, err := pp.GetAllProbesForAgent(db)
+					if err != nil {
+						return nil, err
+					}
 
-				tC.Config.Target[0].Target = netResult.PublicAddress
+					for _, probe := range agent {
+						if probe.Config.Server && probe.Type == ProbeType_RPERF {
+							var port = strings.Split(probe.Config.Target[0].Target, ":")[1]
+							tC.Config.Target[0].Target = netResult.PublicAddress + ":" + port
+							break
+						}
+					}
+				} else {
+					tC.Config.Target[0].Target = netResult.PublicAddress
+				}
 			}
 		}
 
