@@ -342,35 +342,43 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 					return nil, err
 				}
 
-				// todo only return first element, we don't care currently about previous IPs and such...
+				a := Agent{ID: tC.Config.Target[0].Agent}
+				err = a.Get(db)
+				if err != nil {
+					return nil, err
+				}
+
 				lastElement := data[len(data)-1]
-
 				var netResult NetResult
-				switch v := lastElement.Data.(type) {
-				case primitive.D:
-					// Marshal primitive.D into BSON bytes
-					bsonData, err := bson.Marshal(v)
-					if err != nil {
-						log.Fatalf("Marshal failed: %v", err)
-					}
+				if a.PublicIPOverride != "" {
+					netResult.PublicAddress = a.PublicIPOverride
+				} else {
+					switch v := lastElement.Data.(type) {
+					case primitive.D:
+						// Marshal primitive.D into BSON bytes
+						bsonData, err := bson.Marshal(v)
+						if err != nil {
+							log.Fatalf("Marshal failed: %v", err)
+						}
 
-					// Unmarshal BSON bytes into NetResult
-					err = bson.Unmarshal(bsonData, &netResult)
-					if err != nil {
-						log.Fatalf("Unmarshal failed: %v", err)
+						// Unmarshal BSON bytes into NetResult
+						err = bson.Unmarshal(bsonData, &netResult)
+						if err != nil {
+							log.Fatalf("Unmarshal failed: %v", err)
+						}
+					case primitive.M:
+						// Data is in the form of primitive.M
+						bsonData, err := bson.Marshal(v)
+						if err != nil {
+							log.Fatalf("Marshal failed: %v", err)
+						}
+						err = bson.Unmarshal(bsonData, &netResult)
+						if err != nil {
+							log.Fatalf("Unmarshal failed: %v", err)
+						}
+					default:
+						log.Fatalf("Data is neither primitive.D nor primitive.M")
 					}
-				case primitive.M:
-					// Data is in the form of primitive.M
-					bsonData, err := bson.Marshal(v)
-					if err != nil {
-						log.Fatalf("Marshal failed: %v", err)
-					}
-					err = bson.Unmarshal(bsonData, &netResult)
-					if err != nil {
-						log.Fatalf("Unmarshal failed: %v", err)
-					}
-				default:
-					log.Fatalf("Data is neither primitive.D nor primitive.M")
 				}
 
 				// todo this needs to be fixed for if the probe is a rperf probe,
