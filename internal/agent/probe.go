@@ -425,7 +425,7 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 					// todo and use that as the target and account for the public ip or ip override
 					// todo this is a bit of a hack, but it works for now
 					var pp = Probe{Agent: tC.Config.Target[0].Agent, Type: ProbeType_RPERF}
-					agent, err := pp.GetAllProbesForAgent(db)
+					agent, err := pp.GetAll(db)
 					if err != nil {
 						return nil, err
 					}
