@@ -363,11 +363,7 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 			return nil, err
 		}
 
-		if tC.Type == ProbeType_TRAFFICSIM && tC.Config.Server {
-
-		}
-
-		if len(tC.Config.Target) > 0 && (!tC.Config.Server && tC.Type != ProbeType_TRAFFICSIM) {
+		if len(tC.Config.Target) > 0 && !(tC.Config.Server && tC.Type == ProbeType_TRAFFICSIM) {
 			if tC.Config.Target[0].Agent != (primitive.ObjectID{}) {
 				// todo get the latest public ip of the agent, and use that as the target
 				check := Probe{Agent: tC.Config.Target[0].Agent, Type: ProbeType_NETWORKINFO}
@@ -425,18 +421,18 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 					}
 				}
 
-				if tC.Type == ProbeType_RPERF {
+				if tC.Type == ProbeType_RPERF || tC.Type == ProbeType_TRAFFICSIM {
 					// todo get rperf server based on the probe's agent ID, get the probe information for the "rperf server"
 					// todo and use that as the target and account for the public ip or ip override
 					// todo this is a bit of a hack, but it works for now
-					var pp = Probe{Agent: tC.Config.Target[0].Agent, Type: ProbeType_RPERF}
+					var pp = Probe{Agent: tC.Config.Target[0].Agent, Type: tC.Type}
 					agent, err := pp.GetAll(db)
 					if err != nil {
 						return nil, err
 					}
 
 					for _, probe := range agent {
-						if probe.Config.Server && probe.Type == ProbeType_RPERF {
+						if probe.Config.Server && probe.Type == tC.Type {
 							var port = strings.Split(probe.Config.Target[0].Target, ":")[1]
 							tC.Config.Target[0].Target = netResult.PublicAddress + ":" + port
 							break
