@@ -22,6 +22,22 @@ type Probe struct {
 	Config        ProbeConfig        `bson:"config"json:"config"`
 }
 
+/*
+when a list of probetargets is given, normal targets will only contain a target, and not an agent, etc
+- this way we can then re-include the probetarget into the data it sends back to differentiate between targets
+even though there is technically only 1 "probe"
+
+*/
+
+type ProbeConfig struct {
+	Target   []ProbeTarget `json:"target" bson:"target"`
+	Duration int           `json:"duration" bson:"duration"`
+	Count    int           `json:"count" bson:"count"`
+	Interval int           `json:"interval" bson:"interval"`
+	Server   bool          `bson:"server" json:"server"`
+	Pending  time.Time     `json:"pending" bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
+}
+
 // todo update targets to be a struct instead of a simple string
 
 // ProbeTarget for group based target data, on  generation of the "targets" grabbed by the agent on connection
@@ -38,22 +54,6 @@ type ProbeAlert struct {
 	Timestamp time.Time          `json:"timestamp" bson:"timestamp"`
 	Probe     Probe              `bson:"probe" json:"probe"`
 	ProbeData ProbeData          `json:"probe_data" bson:"probeData"`
-}
-
-/*
-when a list of probetargets is given, normal targets will only contain a target, and not an agent, etc
-- this way we can then re-include the probetarget into the data it sends back to differentiate between targets
-even though there is technically only 1 "probe"
-
-*/
-
-type ProbeConfig struct {
-	Target   []ProbeTarget `json:"target" bson:"target"`
-	Duration int           `json:"duration" bson:"duration"`
-	Count    int           `json:"count" bson:"count"`
-	Interval int           `json:"interval" bson:"interval"`
-	Server   bool          `bson:"server" json:"server"`
-	Pending  time.Time     `json:"pending" bson:"pending"` // timestamp of when it was made pending / invalidate it after 10 minutes or so?
 }
 
 func DeleteProbesByAgentID(db *mongo.Database, agentID primitive.ObjectID) error {
@@ -95,6 +95,7 @@ const (
 	ProbeType_SPEEDTEST   ProbeType = "SPEEDTEST"
 	ProbeType_NETWORKINFO ProbeType = "NETINFO"
 	ProbeType_SYSTEMINFO  ProbeType = "SYSINFO"
+	ProbeType_TRAFFICSIM  ProbeType = "TRAFFICSIM"
 )
 
 type ProbeDataRequest struct {
@@ -362,7 +363,11 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 			return nil, err
 		}
 
-		if len(tC.Config.Target) > 0 {
+		if tC.Type == ProbeType_TRAFFICSIM && tC.Config.Server {
+
+		}
+
+		if len(tC.Config.Target) > 0 && (!tC.Config.Server && tC.Type != ProbeType_TRAFFICSIM) {
 			if tC.Config.Target[0].Agent != (primitive.ObjectID{}) {
 				// todo get the latest public ip of the agent, and use that as the target
 				check := Probe{Agent: tC.Config.Target[0].Agent, Type: ProbeType_NETWORKINFO}
@@ -441,12 +446,60 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 					tC.Config.Target[0].Target = netResult.PublicAddress
 				}
 			}
+		} else if tC.Config.Server && tC.Type == ProbeType_TRAFFICSIM {
+			clients, err := FindTrafficSimClients(db, tC.Agent)
+			if err != nil {
+				return nil, err
+			}
+
+			// ~clear the targets just to be sure~
+			// turns out we don't want to do that because the first element
+			// should actually be the binding ip / port of the server
+
+			// tC.Config.Target = nil
+
+			// we are rebuilding the target list
+			for _, client := range clients {
+				newTarget := ProbeTarget{Agent: client.Agent}
+				tC.Config.Target = append(tC.Config.Target, newTarget)
+			}
 		}
 
 		// append the target to the probe
 		agentCheck = append(agentCheck, &tC)
 	}
+
+	// todo find all the probes that are trafficsim types for the other agents in the current workspace
+	// and add them as targets to the server probe for the traffic sim if it's a traffic server sim
+
 	return agentCheck, nil
+}
+
+func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID) ([]*Probe, error) {
+	// we shouldn't need to search based on all the sites / reduce them because we trust the backend / no one will
+	// abuse the functionality of adding a traffic sim server to a site that it doesn't belong to / link to agent?
+
+	// Assuming `serverAgentID` is the ID of the agent with the TRAFFICSIM server probe.
+
+	// Step 1: Define the filter to find non-server TRAFFICSIM probes targeting this server agent.
+	filter := bson.D{
+		{"type", ProbeType_TRAFFICSIM},         // Filter for TRAFFICSIM type probes.
+		{"config.server", false},               // Ensure these are not servers.
+		{"config.target.agent", serverAgentID}, // Target must be the server agent.
+	}
+
+	// Step 2: Query the probes collection based on the defined filter.
+	var clientProbes []*Probe
+	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+	if err := cursor.All(context.TODO(), &clientProbes); err != nil {
+		return nil, err
+	}
+
+	// `clientProbes` now contains all TRAFFICSIM client probes targeting the given server agent.
+	return clientProbes, nil
 }
 
 func (c *Probe) Update(db *mongo.Database) error {
