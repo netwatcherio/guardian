@@ -155,7 +155,7 @@ func addRouteAgents(r *Router) []*Route {
 
 			cAgent.Site = s.ID
 
-			err = cAgent.UpdateAgentDetails(r.DB, cAgent.Name, cAgent.Location)
+			err = cAgent.UpdateAgentDetails(r.DB, cAgent.Name, cAgent.Location, cAgent.PublicIPOverride)
 			if err != nil {
 				log.Error(err)
 				ctx.StatusCode(http.StatusInternalServerError)

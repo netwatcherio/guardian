@@ -26,13 +26,14 @@ type Agent struct {
 	// pin will be used for "auth" as the password, the ID will stay the same
 }
 
-func (a *Agent) UpdateAgentDetails(db *mongo.Database, newName string, newLocation string) error {
+func (a *Agent) UpdateAgentDetails(db *mongo.Database, newName string, newLocation string, newIP string) error {
 	var filter = bson.D{{"_id", a.ID}}
 
 	update := bson.D{
 		{"$set", bson.D{
 			{"name", newName},
 			{"location", newLocation},
+			{"public_ip_override", newIP},
 		}},
 	}
 
