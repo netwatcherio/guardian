@@ -151,7 +151,10 @@ func addRouteAgents(r *Router) []*Route {
 			s := agent.Agent{ID: sId}
 
 			cAgent := new(agent.Agent)
-			ctx.ReadJSON(&cAgent)
+			err = ctx.ReadJSON(&cAgent)
+			if err != nil {
+				return err
+			}
 
 			cAgent.Site = s.ID
 

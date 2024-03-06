@@ -436,6 +436,7 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 							var port = strings.Split(probe.Config.Target[0].Target, ":")[1]
 							tC.Config.Target[0].Target = netResult.PublicAddress + ":" + port
 							break
+
 						}
 					}
 				} else {
