@@ -225,6 +225,8 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeData,
 
 	if c.Type == ProbeType_NETWORKINFO || c.Type == ProbeType_SPEEDTEST || c.Type == ProbeType_SYSTEMINFO {
 		timestampField = "data.timestamp"
+	} else if c.Type == ProbeType_TRAFFICSIM {
+		timestampField = "data.lastReportTime"
 	}
 
 	if !req.Recent {
