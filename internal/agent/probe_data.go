@@ -97,6 +97,24 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	}
 
 	switch probe[0].Type { // todo
+	case ProbeType_TRAFFICSIM:
+		// First, marshal the interface{} back to JSON
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
+		// Now you can unmarshal the JSON into your struct
+		var trafficSimClientStats TrafficSimClientStats
+		err = json.Unmarshal(jsonData, &trafficSimClientStats)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
+		// Return the successfully unmarshaled data
+		return trafficSimClientStats, nil
 	case ProbeType_RPERF:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
@@ -495,4 +513,15 @@ type HostMemoryInfo struct {
 	VirtualUsed  uint64            `json:"virtual_used_bytes" bson:"virtualUsed"`   // VirtualTotal - VirtualFree
 	VirtualFree  uint64            `json:"virtual_free_bytes" bson:"virtualFree"`   // Virtual memory that is not used.
 	Metrics      map[string]uint64 `json:"raw,omitempty" bson:"metrics"`            // Other memory related metrics.
+}
+
+type TrafficSimClientStats struct {
+	SentPackets    int           `json:"sentPackets,omitempty" bson:"sentPackets"`
+	ReceivedAcks   int           `json:"receivedAcks,omitempty" bson:"receivedAcks"`
+	LostPackets    int           `json:"lostPackets,omitempty" bson:"lostPackets"`
+	OutOfSequence  int           `json:"outOfSequence,omitempty" bson:"outOfSequence"`
+	LastReportTime time.Time     `json:"lastReportTime" bson:"lastReportTime"`
+	AverageRTT     int64         `json:"averageRTT,omitempty" bson:"averageRTT"` // in milliseconds
+	TotalRTT       int64         `json:"totalRTT,omitempty" bson:"totalRTT"`     // in milliseconds
+	ReportInterval time.Duration `json:"reportInterval,omitempty" bson:"reportInterval"`
 }
