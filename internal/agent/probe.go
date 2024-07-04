@@ -371,20 +371,22 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 				// .Get will update it self instead of returning a list with a first object
 				dd, err := check.Get(db)
 				if err != nil {
-					return nil, err
+					log.Error(err)
+					continue
 				}
 
 				dd[0].Agent = primitive.ObjectID{0}
 				data, err := dd[0].GetData(&ProbeDataRequest{Recent: true, Limit: 1}, db)
 				if err != nil {
-					log.Warnf(err.Error())
-					return nil, err
+					log.Error(err)
+					continue
 				}
 
 				a := Agent{ID: tC.Config.Target[0].Agent}
 				err = a.Get(db)
 				if err != nil {
-					return nil, err
+					log.Error(err)
+					continue
 				}
 
 				lastElement := data[len(data)-1]
@@ -398,23 +400,27 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 						// Marshal primitive.D into BSON bytes
 						bsonData, err := bson.Marshal(v)
 						if err != nil {
-							log.Fatalf("Marshal failed: %v", err)
+							log.Error(err)
+							continue
 						}
 
 						// Unmarshal BSON bytes into NetResult
 						err = bson.Unmarshal(bsonData, &netResult)
 						if err != nil {
-							log.Fatalf("Unmarshal failed: %v", err)
+							log.Error(err)
+							continue
 						}
 					case primitive.M:
 						// Data is in the form of primitive.M
 						bsonData, err := bson.Marshal(v)
 						if err != nil {
-							log.Fatalf("Marshal failed: %v", err)
+							log.Error(err)
+							continue
 						}
 						err = bson.Unmarshal(bsonData, &netResult)
 						if err != nil {
-							log.Fatalf("Unmarshal failed: %v", err)
+							log.Error(err)
+							continue
 						}
 					default:
 						log.Fatalf("Data is neither primitive.D nor primitive.M")
@@ -428,7 +434,8 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 					var pp = Probe{Agent: tC.Config.Target[0].Agent, Type: tC.Type}
 					agent, err := pp.GetAll(db)
 					if err != nil {
-						return nil, err
+						log.Error(err)
+						continue
 					}
 
 					for _, probe := range agent {
@@ -446,7 +453,8 @@ func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 		} else if tC.Config.Server && tC.Type == ProbeType_TRAFFICSIM {
 			clients, err := FindTrafficSimClients(db, tC.Agent)
 			if err != nil {
-				return nil, err
+				log.Error(err)
+				continue
 			}
 
 			// ~clear the targets just to be sure~
