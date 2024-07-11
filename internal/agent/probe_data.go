@@ -518,12 +518,23 @@ type HostMemoryInfo struct {
 }
 
 type TrafficSimClientStats struct {
-	SentPackets    int       `json:"sentPackets,omitempty" bson:"sentPackets"`
-	ReceivedAcks   int       `json:"receivedAcks,omitempty" bson:"receivedAcks"`
-	LostPackets    int       `json:"lostPackets,omitempty" bson:"lostPackets"`
-	OutOfSequence  int       `json:"outOfSequence,omitempty" bson:"outOfSequence"`
-	LastReportTime time.Time `json:"lastReportTime" bson:"lastReportTime"`
-	AverageRTT     int64     `json:"averageRTT,omitempty" bson:"averageRTT"` // in milliseconds
-	MinRTT         int64     `json:"minRTT,omitempty" bson:"minRTT"`         // in milliseconds
-	MaxRTT         int64     `json:"maxRTT,omitempty" bson:"maxRTT"`         // in milliseconds
+	LostPackets      int   `json:"lostPackets,omitempty" bson:"lostPackets"`
+	OutOfSequence    int   `json:"outOfSequence,omitempty" bson:"outOfSequence"`
+	DuplicatePackets int   `json:"duplicatePackets,omitempty" bson:"duplicatePackets"`
+	StdDevRTT        int64 `json:"stdDevRTT,omitempty" bson:"stdDevRTT"`
+	AverageRTT       int64 `json:"averageRTT,omitempty" bson:"averageRTT"` // in milliseconds
+	MinRTT           int64 `json:"minRTT,omitempty" bson:"minRTT"`         // in milliseconds
+	MaxRTT           int64 `json:"maxRTT,omitempty" bson:"maxRTT"`         // in milliseconds
+	TotalPackets     int   `json:"totalPackets" bson:"totalPackets"`
 }
+
+/*return map[string]interface{}{
+"lostPackets":      lostPackets,
+"outOfSequence":    outOfOrder,
+"duplicatePackets": duplicatePackets,
+"averageRTT":       avgRTT,
+"minRTT":           minRTT,
+"maxRTT":           maxRTT,
+"stdDevRTT":        stdDevRTT,
+"totalPackets":     len(ts.ClientStats.PacketTimes),
+}*/
