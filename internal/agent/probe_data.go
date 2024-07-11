@@ -526,6 +526,7 @@ type TrafficSimClientStats struct {
 	OutOfSequence    int     `json:"outOfSequence" bson:"outOfSequence"`
 	StdDevRTT        float64 `json:"stdDevRTT" bson:"stdDevRTT"`
 	TotalPackets     int     `json:"totalPackets" bson:"totalPackets"`
+	ReportTime       int     `json:"reportTime" bson:"reportTime"`
 }
 
 /*return map[string]interface{}{
