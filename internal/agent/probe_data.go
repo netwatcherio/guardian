@@ -518,15 +518,15 @@ type HostMemoryInfo struct {
 }
 
 type TrafficSimClientStats struct {
-	AverageRTT       float64 `json:"averageRTT" bson:"averageRTT"`
-	DuplicatePackets int     `json:"duplicatePackets" bson:"duplicatePackets"`
-	LostPackets      int     `json:"lostPackets" bson:"lostPackets"`
-	MaxRTT           int     `json:"maxRTT" bson:"maxRTT"`
-	MinRTT           int     `json:"minRTT" bson:"minRTT"`
-	OutOfSequence    int     `json:"outOfSequence" bson:"outOfSequence"`
-	StdDevRTT        float64 `json:"stdDevRTT" bson:"stdDevRTT"`
-	TotalPackets     int     `json:"totalPackets" bson:"totalPackets"`
-	ReportTime       int64   `json:"reportTime" bson:"reportTime"`
+	AverageRTT       float64   `json:"averageRTT" bson:"averageRTT"`
+	DuplicatePackets int       `json:"duplicatePackets" bson:"duplicatePackets"`
+	LostPackets      int       `json:"lostPackets" bson:"lostPackets"`
+	MaxRTT           int       `json:"maxRTT" bson:"maxRTT"`
+	MinRTT           int       `json:"minRTT" bson:"minRTT"`
+	OutOfSequence    int       `json:"outOfSequence" bson:"outOfSequence"`
+	StdDevRTT        float64   `json:"stdDevRTT" bson:"stdDevRTT"`
+	TotalPackets     int       `json:"totalPackets" bson:"totalPackets"`
+	ReportTime       time.Time `json:"reportTime" bson:"reportTime"`
 }
 
 /*return map[string]interface{}{
