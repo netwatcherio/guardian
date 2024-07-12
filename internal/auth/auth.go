@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
@@ -161,8 +162,9 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 }
 
 type AgentLogin struct {
-	PIN string `json:"pin"`
-	ID  string `json:"id"`
+	PIN          string `json:"pin"`
+	ID           string `json:"id"`
+	AgentVersion string `json:"version"`
 }
 
 // AgentLogin returns error on fail, nil on success
@@ -199,6 +201,11 @@ func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
 	err = session.Create(db)
 	if err != nil {
 		return "", err
+	}
+
+	err = u.UpdateAgentVersion(r.AgentVersion, db)
+	if err != nil {
+		log.Warnf("failed to update agent version for %s", u.ID)
 	}
 
 	// Create the Claims

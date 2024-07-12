@@ -23,6 +23,7 @@ type Agent struct {
 	CreatedAt        time.Time          `bson:"createdAt"json:"createdAt"`
 	UpdatedAt        time.Time          `bson:"updatedAt"json:"updatedAt"` // used for heart beat
 	PublicIPOverride string             `bson:"public_ip_override"json:"public_ip_override"`
+	Version          string             `bson:"version" json:"version"`
 	// pin will be used for "auth" as the password, the ID will stay the same
 }
 
@@ -54,6 +55,19 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 	var filter = bson.D{{"_id", a.ID}}
 
 	update := bson.D{{"$set", bson.D{{"updatedAt", time.Now()}}}}
+
+	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Agent) UpdateAgentVersion(version string, db *mongo.Database) error {
+	var filter = bson.D{{"_id", a.ID}}
+
+	update := bson.D{{"$set", bson.D{{"version", version}}}}
 
 	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
