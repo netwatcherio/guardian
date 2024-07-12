@@ -226,6 +226,12 @@ func (a *Agent) Create(db *mongo.Database) error {
 		return err
 	}
 
+	s2 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST_SERVERS}
+	err = s2.Create(db)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("created agent with id: %v\n", result.InsertedID)
 	return nil
 }
