@@ -128,7 +128,6 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 			// Handle error
 		}
 		return rperfData, err
-
 	case ProbeType_MTR:
 		// First, marshal the interface{} back to JSON
 		jsonData, err := json.Marshal(pd.Data)
@@ -186,6 +185,20 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 			// Handle error
 		}
 		return mtrData, err
+	case ProbeType_SPEEDTEST_SERVERS:
+		jsonData, err := json.Marshal(pd.Data)
+		if err != nil {
+			// Handle the error, perhaps return it
+			return nil, err
+		}
+
+		var mtrData []SpeedTestServer // Replace with the actual struct for MTR data
+		err = json.Unmarshal(jsonData, &mtrData)
+		if err != nil {
+			log.Error(err)
+			// Handle error
+		}
+		return mtrData, err
 	// Add cases for other probe types
 	case ProbeType_SYSTEMINFO:
 		jsonData, err := json.Marshal(pd.Data)
@@ -215,7 +228,7 @@ func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeData,
 	opts := options.Find().SetLimit(req.Limit)
 
 	// Combined filter
-	var combinedFilter bson.M = bson.M{"probe": c.ID}
+	var combinedFilter = bson.M{"probe": c.ID}
 	if c.Agent != (primitive.ObjectID{0}) {
 		combinedFilter["agent"] = c.Agent
 		//combinedFilter["type"] = c.Type
@@ -342,22 +355,54 @@ type MtrResult struct {
 }
 
 type NetResult struct {
-	LocalAddress     string    `json:"local_address"bson:"local_address"`
-	DefaultGateway   string    `json:"default_gateway"bson:"default_gateway"`
-	PublicAddress    string    `json:"public_address"bson:"public_address"`
-	InternetProvider string    `json:"internet_provider"bson:"internet_provider"`
-	Lat              string    `json:"lat"bson:"lat"`
-	Long             string    `json:"long"bson:"long"`
-	Timestamp        time.Time `json:"timestamp"bson:"timestamp"`
+	LocalAddress     string    `json:"local_address" bson:"local_address"`
+	DefaultGateway   string    `json:"default_gateway" bson:"default_gateway"`
+	PublicAddress    string    `json:"public_address" bson:"public_address"`
+	InternetProvider string    `json:"internet_provider" bson:"internet_provider"`
+	Lat              string    `json:"lat" bson:"lat"`
+	Long             string    `json:"long" bson:"long"`
+	Timestamp        time.Time `json:"timestamp" bson:"timestamp"`
 }
 type SpeedTestResult struct {
-	Latency   time.Duration `json:"latency"bson:"latency"`
-	DLSpeed   float64       `json:"dl_speed"bson:"dl_speed"`
-	ULSpeed   float64       `json:"ul_speed"bson:"ul_speed"`
-	Server    string        `json:"server"bson:"server"`
-	Host      string        `json:"host"bson:"host"`
-	Timestamp time.Time     `json:"timestamp"bson:"timestamp"`
+	TestData  []SpeedTestServer `json:"test_data"`
+	Timestamp time.Time         `json:"timestamp" bson:"timestamp"`
 }
+
+type SpeedTestServer struct {
+	URL          string                `json:"url,omitempty" bson:"url"`
+	Lat          string                `json:"lat,omitempty" bson:"lat"`
+	Lon          string                `json:"lon,omitempty" bson:"lon"`
+	Name         string                `json:"name,omitempty" bson:"name"`
+	Country      string                `json:"country,omitempty" bson:"country"`
+	Sponsor      string                `json:"sponsor,omitempty" bson:"sponsor"`
+	ID           string                `json:"id,omitempty" bson:"id"`
+	Host         string                `json:"host,omitempty" bson:"host"`
+	Distance     float64               `json:"distance,omitempty" bson:"distance"`
+	Latency      time.Duration         `json:"latency,omitempty" bson:"latency"`
+	MaxLatency   time.Duration         `json:"max_latency,omitempty" bson:"max_latency"`
+	MinLatency   time.Duration         `json:"min_latency,omitempty" bson:"min_latency"`
+	Jitter       time.Duration         `json:"jitter,omitempty" bson:"jitter"`
+	DLSpeed      SpeedTestByteRate     `json:"dl_speed,omitempty" bson:"dl_speed"`
+	ULSpeed      SpeedTestByteRate     `json:"ul_speed,omitempty" bson:"ul_speed"`
+	TestDuration SpeedTestTestDuration `json:"test_duration,omitempty" bson:"test_duration"`
+	PacketLoss   SpeedTestPLoss        `json:"packet_loss,omitempty" bson:"packet_loss"`
+}
+
+type SpeedTestByteRate float64
+
+type SpeedTestTestDuration struct {
+	Ping     *time.Duration `json:"ping" bson:"ping"`
+	Download *time.Duration `json:"download" bson:"download"`
+	Upload   *time.Duration `json:"upload" bson:"upload"`
+	Total    *time.Duration `json:"total" bson:"total"`
+}
+
+type SpeedTestPLoss struct {
+	Sent int `json:"sent" bson:"sent"` // Number of sent packets acknowledged by the remote.
+	Dup  int `json:"dup" bson:"dup"`   // Number of duplicate packets acknowledged by the remote.
+	Max  int `json:"max" bson:"max"`   // The maximum index value received by the remote.
+}
+
 type RPerfResults struct {
 	StartTimestamp time.Time `json:"start_timestamp"bson:"start_timestamp"`
 	StopTimestamp  time.Time `json:"stop_timestamp"bson:"stop_timestamp"`
