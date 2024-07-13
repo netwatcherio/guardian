@@ -451,5 +451,46 @@ func addRouteProbes(r *Router) []*Route {
 
 		Type: RouteType_POST,
 	})
+	tempRoutes = append(tempRoutes, &Route{
+		Name: "Update First Probe Target",
+		Path: "/first_probe_target_update/{probeid}", // fuck i think im braindead
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json") // "Application/json"
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			sId, err := primitive.ObjectIDFromHex(params.Get("probeid"))
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			s := agent.Probe{ID: sId}
+
+			req := agent.Probe{}
+			err = ctx.ReadJSON(&req)
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			err = s.UpdateFirstProbeTarget(r.DB, req.Config.Target[0].Target)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return err
+			}
+
+			ctx.StatusCode(http.StatusOK)
+
+			return nil
+		},
+		Type: RouteType_POST,
+	})
 	return tempRoutes
 }

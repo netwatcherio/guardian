@@ -107,30 +107,30 @@ type ProbeDataRequest struct {
 	Option         string    `json:"option"`
 }
 
-func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
+func (probe *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 	// todo finding similar probes is based on the targets and not groups currently
 
-	if len(c.Config.Target) == 0 {
+	if len(probe.Config.Target) == 0 {
 		return nil, errors.New("no targets defined in probe config")
 	}
 
-	c.Type = ""
+	probe.Type = ""
 
-	get, err := c.Get(db)
+	get, err := probe.Get(db)
 	if err != nil {
 		return nil, err
 	}
 
 	var similarProbes []*Probe
 
-	var tt = c.Config.Target[0]
+	var tt = probe.Config.Target[0]
 
 	if tt.Agent != (primitive.ObjectID{}) {
 		for _, probe := range get {
 			if len(probe.Config.Target) == 0 {
 				continue
 			}
-			if probe.Config.Target[0].Agent == c.Config.Target[0].Agent {
+			if probe.Config.Target[0].Agent == probe.Config.Target[0].Agent {
 				similarProbes = append(similarProbes, probe)
 			}
 		}
@@ -233,12 +233,12 @@ func (c *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 	return similarProbes, nil
 }
 
-func (c *Probe) Create(db *mongo.Database) error {
-	c.ID = primitive.NewObjectID()
-	c.CreatedAt = time.Now()
-	c.UpdatedAt = time.Now()
+func (probe *Probe) Create(db *mongo.Database) error {
+	probe.ID = primitive.NewObjectID()
+	probe.CreatedAt = time.Now()
+	probe.UpdatedAt = time.Now()
 
-	mar, err := bson.Marshal(c)
+	mar, err := bson.Marshal(probe)
 	if err != nil {
 		log.Errorf("error marshalling agent check when creating: %s", err)
 		return err
@@ -260,13 +260,13 @@ func (c *Probe) Create(db *mongo.Database) error {
 	return nil
 }
 
-func (c *Probe) Get(db *mongo.Database) ([]*Probe, error) {
-	var filter = bson.D{{"_id", c.ID}}
+func (probe *Probe) Get(db *mongo.Database) ([]*Probe, error) {
+	var filter = bson.D{{"_id", probe.ID}}
 
-	if c.Type != "" && c.Agent != (primitive.ObjectID{0}) {
-		filter = bson.D{{"agent", c.Agent}, {"type", c.Type}}
-	} else if c.Agent != (primitive.ObjectID{0}) {
-		filter = bson.D{{"agent", c.Agent}}
+	if probe.Type != "" && probe.Agent != (primitive.ObjectID{0}) {
+		filter = bson.D{{"agent", probe.Agent}, {"type", probe.Type}}
+	} else if probe.Agent != (primitive.ObjectID{0}) {
+		filter = bson.D{{"agent", probe.Agent}}
 	}
 
 	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
@@ -301,10 +301,10 @@ func (c *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 }
 
 // GetAll get all checks based on id, and &/or type
-func (c *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
-	var filter = bson.D{{"agent", c.Agent}}
-	if c.Type != "" {
-		filter = bson.D{{"agent", c.Agent}, {"type", c.Type}}
+func (probe *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
+	var filter = bson.D{{"agent", probe.Agent}}
+	if probe.Type != "" {
+		filter = bson.D{{"agent", probe.Agent}, {"type", probe.Type}}
 	}
 
 	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
@@ -333,10 +333,25 @@ func (c *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
 	return agentCheck, nil
 }
 
-func (c *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
-	var filter = bson.D{{"agent", c.Agent}}
-	if c.Type != "" {
-		filter = bson.D{{"agent", c.Agent}, {"type", c.Type}}
+func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus string) error {
+	var filter = bson.D{{"_id", probe.ID}}
+
+	update := bson.D{
+		{"$set", probe},
+	}
+
+	_, err := db.Collection("probes").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
+	var filter = bson.D{{"agent", probe.Agent}}
+	if probe.Type != "" {
+		filter = bson.D{{"agent", probe.Agent}, {"type", probe.Type}}
 	}
 
 	// this needs to be able to populate the target field with the ip/&port of the target based on
@@ -508,10 +523,10 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 	return clientProbes, nil
 }
 
-func (c *Probe) Update(db *mongo.Database) error {
-	var filter = bson.D{{"_id", c.ID}}
+func (probe *Probe) Update(db *mongo.Database) error {
+	var filter = bson.D{{"_id", probe.ID}}
 
-	marshal, err := bson.Marshal(c)
+	marshal, err := bson.Marshal(probe)
 	if err != nil {
 		return err
 	}
@@ -534,11 +549,11 @@ func (c *Probe) Update(db *mongo.Database) error {
 }
 
 // Delete check based on provided agent ID in check struct
-func (c *Probe) Delete(db *mongo.Database) error {
+func (probe *Probe) Delete(db *mongo.Database) error {
 	// filter based on check ID
-	var filter = bson.D{{"_id", c.ID}}
-	if (c.Agent != primitive.ObjectID{}) {
-		filter = bson.D{{"agent", c.Agent}}
+	var filter = bson.D{{"_id", probe.ID}}
+	if (probe.Agent != primitive.ObjectID{}) {
+		filter = bson.D{{"agent", probe.Agent}}
 	}
 
 	_, err := db.Collection("probes").DeleteMany(context.TODO(), filter)

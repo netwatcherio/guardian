@@ -224,21 +224,21 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 // GetData requires a checkrequest to be sent, if agent id is set,
 // it will require the type to be sent in check, otherwise
 // the check id will be used
-func (c *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeData, error) {
+func (probe *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeData, error) {
 	opts := options.Find().SetLimit(req.Limit)
 
 	// Combined filter
-	var combinedFilter = bson.M{"probe": c.ID}
-	if c.Agent != (primitive.ObjectID{0}) {
-		combinedFilter["agent"] = c.Agent
+	var combinedFilter = bson.M{"probe": probe.ID}
+	if probe.Agent != (primitive.ObjectID{0}) {
+		combinedFilter["agent"] = probe.Agent
 		//combinedFilter["type"] = c.Type
 	}
 
 	var timestampField = "data.stop_timestamp"
 
-	if c.Type == ProbeType_NETWORKINFO || c.Type == ProbeType_SPEEDTEST || c.Type == ProbeType_SYSTEMINFO {
+	if probe.Type == ProbeType_NETWORKINFO || probe.Type == ProbeType_SPEEDTEST || probe.Type == ProbeType_SYSTEMINFO {
 		timestampField = "data.timestamp"
-	} else if c.Type == ProbeType_TRAFFICSIM {
+	} else if probe.Type == ProbeType_TRAFFICSIM {
 		timestampField = "data.reportTime"
 	}
 

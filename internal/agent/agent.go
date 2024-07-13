@@ -51,6 +51,22 @@ func (a *Agent) UpdateAgentDetails(db *mongo.Database, newName string, newLocati
 	return nil
 }
 
+func UpdateProbeTarget(db *mongo.Database, probeID primitive.ObjectID, newTarget string) error {
+	filter := bson.M{"_id": probeID}
+	update := bson.M{
+		"$set": bson.M{
+			"config.target.0.target": newTarget,
+		},
+	}
+
+	_, err := db.Collection("probes").UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update probe target: %v", err)
+	}
+
+	return nil
+}
+
 func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 	var filter = bson.D{{"_id", a.ID}}
 
