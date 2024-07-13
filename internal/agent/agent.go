@@ -231,6 +231,13 @@ func (a *Agent) Create(db *mongo.Database) error {
 	if err != nil {
 		return err
 	}
+	target := ProbeTarget{Target: "ok"}
+
+	s3 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST, Config: ProbeConfig{Target: []ProbeTarget{target}}}
+	err = s3.Create(db)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("created agent with id: %v\n", result.InsertedID)
 	return nil
