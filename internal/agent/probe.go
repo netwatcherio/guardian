@@ -343,7 +343,7 @@ func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus stri
 	get[0].Config.Target[0].Target = targetStatus
 
 	update := bson.D{
-		{"$set", get},
+		{"$set", get[0]},
 	}
 
 	_, err = db.Collection("probes").UpdateOne(context.TODO(), filter, update)
