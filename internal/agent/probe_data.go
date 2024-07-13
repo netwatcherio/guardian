@@ -183,7 +183,14 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
 			// Handle error
+			log.Error("Error unmarshalling speedtest data: %s", err)
 		}
+
+		err = pp.UpdateFirstProbeTarget(db, "ok")
+		if err != nil {
+			log.Error("Error updating probe target to disable speed tests: %s", err)
+		}
+
 		return mtrData, err
 	case ProbeType_SPEEDTEST_SERVERS:
 		jsonData, err := json.Marshal(pd.Data)
