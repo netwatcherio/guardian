@@ -336,11 +336,17 @@ func (probe *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
 func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus string) error {
 	var filter = bson.D{{"_id", probe.ID}}
 
+	get, err := probe.Get(db)
+	if err != nil {
+		return err
+	}
+	get[0].Config.Target[0].Target = targetStatus
+
 	update := bson.D{
-		{"$set", probe},
+		{"$set", get},
 	}
 
-	_, err := db.Collection("probes").UpdateOne(context.TODO(), filter, update)
+	_, err = db.Collection("probes").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		return err
 	}
