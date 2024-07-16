@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -75,6 +76,57 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		return err
+	}
+
+	err = a.Get(db)
+	if err != nil {
+		return err
+	}
+
+	versionNums := strings.Split(a.Version, ".")
+	if strings.Contains(a.Version, "1.2.1") && len(versionNums) >= 2 {
+		apiVer := versionNums[0]
+		majVer := versionNums[1]
+		minVer := versionNums[2]
+
+		if apiVer == "1" && majVer == "2" && minVer == "2" {
+			probe := Probe{Agent: a.ID}
+			pps, err2 := probe.GetAllProbesForAgent(db)
+			if err2 != nil {
+				return err2
+			}
+
+			hasSpeedtestServers := false
+			hasSpeedtest := false
+
+			for _, pp := range pps {
+				if pp.Type == ProbeType_SPEEDTEST_SERVERS {
+					hasSpeedtestServers = true
+					continue
+				} else if pp.Type == ProbeType_SPEEDTEST {
+					hasSpeedtest = true
+					continue
+				}
+			}
+
+			if !hasSpeedtestServers {
+				s2 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST_SERVERS}
+				err = s2.Create(db)
+				if err != nil {
+					return err
+				}
+			}
+
+			if !hasSpeedtest {
+				target := ProbeTarget{Target: "ok"}
+
+				s3 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST, Config: ProbeConfig{Target: []ProbeTarget{target}}}
+				err = s3.Create(db)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
