@@ -453,7 +453,7 @@ func addRouteProbes(r *Router) []*Route {
 	})
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Update First Probe Target",
-		Path: "/first_probe_target_update/{probeid}", // fuck i think im braindead
+		Path: "/probe/first_target_update/{probeid}", // fuck i think im braindead
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
 			ctx.ContentType("application/json") // "Application/json"
