@@ -342,6 +342,10 @@ func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus stri
 	}
 	get[0].Config.Target[0].Target = targetStatus
 
+	if get[0].Type == ProbeType_SPEEDTEST {
+		get[0].Config.Pending = time.Now()
+	}
+
 	update := bson.D{
 		{"$set", get[0]},
 	}
