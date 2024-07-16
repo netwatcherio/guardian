@@ -108,129 +108,66 @@ type ProbeDataRequest struct {
 }
 
 func (probe *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
-	// todo finding similar probes is based on the targets and not groups currently
-
 	if len(probe.Config.Target) == 0 {
 		return nil, errors.New("no targets defined in probe config")
 	}
 
+	// Remove type before getting probes
 	probe.Type = ""
 
-	get, err := probe.Get(db)
+	allProbes, err := probe.Get(db)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error fetching probes: %w", err)
 	}
 
-	var similarProbes []*Probe
+	similarProbes := findSimilarProbes(allProbes, probe)
 
-	var tt = probe.Config.Target[0]
-
-	if tt.Agent != (primitive.ObjectID{}) {
-		for _, probe := range get {
-			if len(probe.Config.Target) == 0 {
-				continue
-			}
-			if probe.Config.Target[0].Agent == probe.Config.Target[0].Agent {
-				similarProbes = append(similarProbes, probe)
-			}
-		}
-	} else {
-
-		if (tt.Group != primitive.ObjectID{0}) {
-			log.Errorf("group probes not supported yet")
-		}
-
-		var newT = strings.Split(tt.Target, ":")
-		var ttArget = tt.Target
-		if len(strings.Split(tt.Target, ":")) >= 2 {
-			ttArget = newT[0]
-		}
-
-		for _, probe := range get {
-			if len(probe.Config.Target) == 0 {
-				continue
-			}
-			b := probe.Config.Target[0].Target == ttArget
-			if b {
-				similarProbes = append(similarProbes, probe)
-			}
-		}
-		/*for _, target := range c.Config.Target {
-			// Skip this target if it is part of a group.
-			if (target.Group != primitive.ObjectID{0}) {
-				continue
-			}
-
-			var newT = strings.Split(target.Target, ":")
-			var ttArget = target.Target
-			if len(strings.Split(target.Target, ":")) >= 2 {
-				ttArget = newT[0]
-			}
-
-			if (target.Group != primitive.ObjectID{0}) {
-				continue
-			}
-
-			for _, probe := range get {
-				if probe.Config.Target[0].Target == c.Config.Target[0].Agent {
-					similarProbes = append(similarProbes, probe)
-				}
-			}
-
-			// Initialize the filter
-			filter := bson.M{
-				"config.target.agent": target.Agent,
-			}
-
-			// Check if an agent is defined and set the filter accordingly
-
-			if (target.Agent != primitive.ObjectID{0}) {
-				// If an agent is defined, use it in the filter instead of target host
-				filter["config.target.agent"] = target.Agent
-			} else {
-			// If no agent is defined, build the filter to find probes with the same target host
-			filter["config.target"] = bson.M{
-				"$elemMatch": bson.M{
-					"target": bson.M{"$regex": regexp.QuoteMeta(ttArget), "$options": "i"}, // The "i" option is for case-insensitive matching
-				},
-			}
-			}
-
-			// Query the database for probes with matching targets.
-			cursor, err := db.Collection("probes").Find(context.TODO(), filter)
-			if err != nil {
-				return nil, err
-			}
-
-			var results []bson.D
-			if err := cursor.All(context.TODO(), &results); err != nil {
-				return nil, err
-			}
-
-			for _, r := range results {
-
-				var pData Probe
-				doc, err := bson.Marshal(r)
-				if err != nil {
-					log.Errorf("Error marshalling: %s", err)
-					continue // Skip this result on error.
-				}
-				err = bson.Unmarshal(doc, &pData)
-				if err != nil {
-					log.Errorf("Error unmarshalling: %s", err)
-					continue // Skip this result on error.
-				}
-
-				similarProbes = append(similarProbes, &pData)
-			}
-		}*/
-	}
-
-	if len(similarProbes) <= 0 {
+	if len(similarProbes) == 0 {
 		return nil, errors.New("no similar probes found")
 	}
 
 	return similarProbes, nil
+}
+
+func findSimilarProbes(probes []*Probe, targetProbe *Probe) []*Probe {
+	var similarProbes []*Probe
+
+	for _, p := range probes {
+		if len(p.Config.Target) == 0 {
+			continue
+		}
+
+		for _, targetConfig := range targetProbe.Config.Target {
+			if isSimilarProbe(p, targetConfig) {
+				similarProbes = append(similarProbes, p)
+				break // Move to the next probe once a match is found
+			}
+		}
+	}
+
+	return similarProbes
+}
+
+func isSimilarProbe(probe *Probe, targetConfig ProbeTarget) bool {
+	for _, probeTarget := range probe.Config.Target {
+		// Check for matching agent IDs
+		if targetConfig.Agent != primitive.NilObjectID && targetConfig.Agent == probeTarget.Agent {
+			return true
+		}
+
+		// Check for manual targets on the same agent
+		if targetConfig.Agent == probeTarget.Agent &&
+			targetConfig.Target != "" &&
+			targetConfig.Target == probeTarget.Target {
+			return true
+		}
+
+		// Check for matching group IDs (if implemented in the future)
+		if targetConfig.Group != primitive.NilObjectID && targetConfig.Group == probeTarget.Group {
+			return true
+		}
+	}
+	return false
 }
 
 func (probe *Probe) Create(db *mongo.Database) error {
