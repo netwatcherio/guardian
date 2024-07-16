@@ -101,17 +101,19 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 			fmt.Println()*/
 
 			var splitVer []int
-			for _, v := range versionMatch[1:] {
+			for i, v := range versionMatch[1:] {
+				if i == 3 {
+					continue
+				}
 				atoi, err := strconv.Atoi(v)
 				if err != nil {
-					log.Error(err)
-					continue
+					return err
 				}
 
 				splitVer = append(splitVer, atoi)
 			}
 
-			if splitVer[1] >= 1 && splitVer[2] >= 2 && splitVer[3] >= 1 {
+			if splitVer[0] >= 1 && splitVer[1] >= 2 && splitVer[2] >= 1 {
 				probe := Probe{Agent: a.ID}
 				pps, err2 := probe.GetAllProbesForAgent(db)
 				if err2 != nil {
