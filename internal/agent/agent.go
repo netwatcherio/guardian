@@ -104,7 +104,8 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 			for _, v := range versionMatch[1:] {
 				atoi, err := strconv.Atoi(v)
 				if err != nil {
-					return err
+					log.Error(err)
+					continue
 				}
 
 				splitVer = append(splitVer, atoi)
