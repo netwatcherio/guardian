@@ -222,6 +222,8 @@ func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
 		return "", ee.ToError()
 	}
 
+	ee.ObjectID = aId
+
 	u := agent.Agent{ID: aId}
 	err = u.Get(db)
 	if err != nil {
