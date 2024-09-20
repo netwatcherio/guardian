@@ -60,16 +60,22 @@ func DeleteProbesByAgentID(db *mongo.Database, agentID primitive.ObjectID) error
 	// todo if probe is deleted, delete associated data
 	// todo if agent is delete, delete all probes, and data
 
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.DeleteProbesByAgentID", ObjectID: agentID}
+
 	p := Probe{Agent: agentID}
 	get, err := p.Get(db)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.DeleteProbesByAgentID", ObjectID: agentID, Message: "unable to get probes by agent id", Error: err}.ToError()
+		ee.Message = "unable to get probes by agent id"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	for _, probe := range get {
 		err := DeleteProbeDataByProbeID(db, probe.ID)
 		if err != nil {
-			return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.DeleteProbesByAgentID", ObjectID: agentID, Message: "error deleting probes by id", Error: err}.ToError()
+			ee.Message = "error deleting probes by id"
+			ee.Error = err
+			return ee.ToError()
 		}
 	}
 
@@ -80,7 +86,9 @@ func DeleteProbesByAgentID(db *mongo.Database, agentID primitive.ObjectID) error
 	// Perform the deletion
 	_, err = db.Collection("probes").DeleteMany(context.TODO(), filter)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.DeleteProbesByAgentID", ObjectID: agentID, Message: "failed to delete probes for agent", Error: err}.ToError()
+		ee.Message = "error deleting probes for agent"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	return nil
@@ -108,8 +116,11 @@ type ProbeDataRequest struct {
 }
 
 func (probe *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindSimilarProbes", ObjectID: probe.ID}
+
 	if len(probe.Config.Target) == 0 {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindSimilarProbes", ObjectID: probe.ID, Message: "no targets found in probe config"}.ToError()
+		ee.Message = "no targets found in probe config"
+		return nil, ee.ToError()
 	}
 
 	// Remove type before getting probes
@@ -117,13 +128,16 @@ func (probe *Probe) FindSimilarProbes(db *mongo.Database) ([]*Probe, error) {
 
 	allProbes, err := probe.Get(db)
 	if err != nil {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindSimilarProbes", ObjectID: probe.ID, Message: "unable to fetch probes", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to fetch probes"
+		return nil, ee.ToError()
 	}
 
 	similarProbes := findSimilarProbes(allProbes, probe)
 
 	if len(similarProbes) == 0 {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindSimilarProbes", ObjectID: probe.ID, Message: "no similar probes found"}.ToError()
+		ee.Message = "no similar probes found"
+		return nil, ee.ToError()
 	}
 
 	return similarProbes, nil
@@ -171,23 +185,31 @@ func isSimilarProbe(probe *Probe, targetConfig ProbeTarget) bool {
 }
 
 func (probe *Probe) Create(db *mongo.Database) error {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Create", ObjectID: probe.ID}
+
 	probe.ID = primitive.NewObjectID()
 	probe.CreatedAt = time.Now()
 	probe.UpdatedAt = time.Now()
 
 	mar, err := bson.Marshal(probe)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Create", ObjectID: probe.ID, Message: "unable to marshal probe"}.ToError()
+		ee.Message = "unable to marshal probe"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	var b *bson.D
 	err = bson.Unmarshal(mar, &b)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Create", ObjectID: probe.ID, Message: "unable to unmarshal probe"}.ToError()
+		ee.Message = "unable to unmarshal probe"
+		ee.Error = err
+		return ee.ToError()
 	}
 	result, err := db.Collection("probes").InsertOne(context.TODO(), b)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Create", ObjectID: probe.ID, Message: "error inserting into probes", Error: err}.ToError()
+		ee.Message = "error inserting into probes"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	fmt.Printf("created agent check with id: %v\n", result.InsertedID)
@@ -195,6 +217,8 @@ func (probe *Probe) Create(db *mongo.Database) error {
 }
 
 func (probe *Probe) Get(db *mongo.Database) ([]*Probe, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Get"}
+
 	var filter = bson.D{{"_id", probe.ID}}
 
 	var objectID = probe.ID
@@ -209,14 +233,20 @@ func (probe *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 		objectID = probe.Agent
 		objectType = "agent"
 	}
+	ee.ObjectID = objectID
+	ee.Message = objectType + " - "
 
 	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
 	if err != nil {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Get", ObjectID: objectID, Message: "error getting probe by id of " + objectType, Error: err}.ToError()
+		ee.Error = err
+		ee.Message += "unable to find probes"
+		return nil, ee.ToError()
 	}
 	var results []bson.D
 	if err = cursor.All(context.TODO(), &results); err != nil {
-		return nil, err
+		ee.Error = err
+		ee.Message += "unable to cursor probes"
+		return nil, ee.ToError()
 	}
 
 	//fmt.Println(results)
@@ -226,11 +256,15 @@ func (probe *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 		var acData Probe
 		doc, err := bson.Marshal(r)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Get", ObjectID: objectID, Message: "error marshalling with id of " + objectType, Error: err}.ToError()
+			ee.Error = err
+			ee.Message += "error marshalling"
+			return nil, ee.ToError()
 		}
 		err = bson.Unmarshal(doc, &acData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Get", ObjectID: objectID, Message: "error unmarshalling with id of " + objectType, Error: err}.ToError()
+			ee.Error = err
+			ee.Message += "error unmarshalling"
+			return nil, ee.ToError()
 		}
 
 		agentChecks = append(agentChecks, &acData)
@@ -241,6 +275,8 @@ func (probe *Probe) Get(db *mongo.Database) ([]*Probe, error) {
 
 // GetAll get all checks based on id, and &/or type
 func (probe *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAll", ObjectID: probe.Agent}
+
 	var filter = bson.D{{"agent", probe.Agent}}
 	if probe.Type != "" {
 		filter = bson.D{{"agent", probe.Agent}, {"type", probe.Type}}
@@ -248,23 +284,31 @@ func (probe *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
 
 	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
 	if err != nil {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAll", ObjectID: probe.Agent, Message: "unable to get probes for agent", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to find probes for agent"
+		return nil, ee.ToError()
 	}
 	var results []bson.D
 	if err = cursor.All(context.TODO(), &results); err != nil {
-		return nil, err
+		ee.Error = err
+		ee.Message = "unable to cursor probes for agent"
+		return nil, ee.ToError()
 	}
 	var agentCheck []*Probe
 
 	for _, rb := range results {
 		m, err := bson.Marshal(&rb)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAll", ObjectID: probe.Agent, Message: "error marshalling", Error: err}.ToError()
+			ee.Error = err
+			ee.Message = "unable to marshal probes"
+			return nil, ee.ToError()
 		}
 		var tC Probe
 		err = bson.Unmarshal(m, &tC)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAll", ObjectID: probe.Agent, Message: "error unmarshalling", Error: err}.ToError()
+			ee.Error = err
+			ee.Message = "unable to unmarshal probes for agent"
+			return nil, ee.ToError()
 		}
 		agentCheck = append(agentCheck, &tC)
 	}
@@ -272,6 +316,7 @@ func (probe *Probe) GetAll(db *mongo.Database) ([]*Probe, error) {
 }
 
 func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus string) error {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.UpdateFirstProbeTarget", ObjectID: probe.Agent}
 	var filter = bson.D{{"_id", probe.ID}}
 
 	get, err := probe.Get(db)
@@ -290,13 +335,15 @@ func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus stri
 
 	_, err = db.Collection("probes").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAll", ObjectID: probe.ID, Message: "failed to update doc", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "failed to update doc"
 	}
 
 	return nil
 }
 
 func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAllProbesForAgent", ObjectID: probe.Agent}
 	var filter = bson.D{{"agent", probe.Agent}}
 	if probe.Type != "" {
 		filter = bson.D{{"agent", probe.Agent}, {"type", probe.Type}}
@@ -307,7 +354,9 @@ func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 
 	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
 	if err != nil {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAllProbesForAgent", ObjectID: probe.Agent, Message: "unable to get probes for agent", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to get probes for agent"
+		return nil, ee.ToError()
 	}
 	var results []bson.D
 	if err = cursor.All(context.TODO(), &results); err != nil {
@@ -318,12 +367,16 @@ func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 	for _, rb := range results {
 		m, err := bson.Marshal(&rb)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAllProbesForAgent", ObjectID: probe.Agent, Message: "error marshalling", Error: err}.ToError()
+			ee.Error = err
+			ee.Message = "error marshalling"
+			return nil, ee.ToError()
 		}
 		var tC Probe
 		err = bson.Unmarshal(m, &tC)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.GetAllProbesForAgent", ObjectID: probe.Agent, Message: "error unmarshalling", Error: err}.ToError()
+			ee.Error = err
+			ee.Message = "error unmarshalling"
+			return nil, ee.ToError()
 		}
 
 		if len(tC.Config.Target) > 0 && !(tC.Config.Server && tC.Type == ProbeType_TRAFFICSIM) {
@@ -334,21 +387,21 @@ func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 				// .Get will update it self instead of returning a list with a first object
 				dd, err := check.Get(db)
 				if err != nil {
-					log.Error(err)
+					log.Error(err) // todo
 					continue
 				}
 
 				dd[0].Agent = primitive.ObjectID{0}
 				data, err := dd[0].GetData(&ProbeDataRequest{Recent: true, Limit: 1}, db)
 				if err != nil {
-					log.Error(err)
+					log.Error(err) // todo
 					continue
 				}
 
 				a := Agent{ID: tC.Config.Target[0].Agent}
 				err = a.Get(db)
 				if err != nil {
-					log.Error(err)
+					log.Error(err) // todo
 					continue
 				}
 
@@ -444,6 +497,8 @@ func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 }
 
 func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID) ([]*Probe, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindTrafficSimClients", ObjectID: serverAgentID}
+
 	// we shouldn't need to search based on all the sites / reduce them because we trust the backend / no one will
 	// abuse the functionality of adding a traffic sim server to a site that it doesn't belong to / link to agent?
 
@@ -460,10 +515,14 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 	var clientProbes []*Probe
 	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
 	if err != nil {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindTrafficSimClients", ObjectID: serverAgentID, Message: "unable to get traffic sim clients 1", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to get traffic sim clients 1"
+		return nil, ee.ToError()
 	}
 	if err := cursor.All(context.TODO(), &clientProbes); err != nil {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindTrafficSimClients", ObjectID: serverAgentID, Message: "unable to get traffic sim clients 2", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to get traffic sim clients 2"
+		return nil, ee.ToError()
 	}
 
 	// `clientProbes` now contains all TRAFFICSIM client probes targeting the given server agent.
@@ -471,24 +530,32 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 }
 
 func (probe *Probe) Update(db *mongo.Database) error {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Update", ObjectID: probe.ID}
+
 	var filter = bson.D{{"_id", probe.ID}}
 
 	marshal, err := bson.Marshal(probe)
 	if err != nil {
-		return err
+		ee.Error = err
+		ee.Message = "unable to marshal"
+		return ee.ToError()
 	}
 
 	var b bson.D
 	err = bson.Unmarshal(marshal, &b)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Update", ObjectID: probe.ID, Message: "unable to unmarshal", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to unmarshal"
+		return ee.ToError()
 	}
 
 	update := bson.D{{"$set", b}}
 
 	_, err = db.Collection("probes").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Update", ObjectID: probe.ID, Message: "unable to update probe", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to update probe"
+		return ee.ToError()
 	}
 
 	return nil
@@ -496,6 +563,7 @@ func (probe *Probe) Update(db *mongo.Database) error {
 
 // Delete check based on provided agent ID in check struct
 func (probe *Probe) Delete(db *mongo.Database) error {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Delete", ObjectID: probe.ID}
 	// filter based on check ID
 	var filter = bson.D{{"_id", probe.ID}}
 	if (probe.Agent != primitive.ObjectID{}) {
@@ -504,7 +572,9 @@ func (probe *Probe) Delete(db *mongo.Database) error {
 
 	_, err := db.Collection("probes").DeleteMany(context.TODO(), filter)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Delete", ObjectID: probe.ID, Message: "unable to delete probe", Error: err}.ToError()
+		ee.Error = err
+		ee.Message = "unable to delete probe"
+		return ee.ToError()
 	}
 
 	return nil

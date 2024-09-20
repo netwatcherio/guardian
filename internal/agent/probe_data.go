@@ -25,6 +25,8 @@ type ProbeData struct {
 }
 
 func DeleteProbeDataByProbeID(db *mongo.Database, probeID primitive.ObjectID) error {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe_data.DeleteProbeDataByProbeID", ObjectID: probeID}
+
 	// Convert the string ID to an ObjectID
 	// Create a filter to match the document by ID
 	filter := bson.M{"probe": probeID}
@@ -32,7 +34,9 @@ func DeleteProbeDataByProbeID(db *mongo.Database, probeID primitive.ObjectID) er
 	// Perform the deletion
 	_, err := db.Collection("probe_data").DeleteMany(context.TODO(), filter)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe_data.DeleteProbeDataByProbeID", ObjectID: probeID, Message: "unable to delete probe data by id", Error: err}.ToError()
+		ee.Message = "unable to delete probe data by id"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	return nil
@@ -40,16 +44,26 @@ func DeleteProbeDataByProbeID(db *mongo.Database, probeID primitive.ObjectID) er
 
 func (pd *ProbeData) Create(db *mongo.Database) error {
 	// todo handle to check if agent id is set and all that... or should it be in the api section??
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe_data.Create", ObjectID: pd.ProbeID}
+
 	pd.ID = primitive.NewObjectID()
 
 	pp := Probe{ID: pd.ProbeID}
 	pp2, err := pp.Get(db)
 	if err != nil {
-		log.Error(err)
+		ee.Message = "no matching probe found"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	a := Agent{ID: pp2[0].Agent}
-	_ = a.UpdateTimestamp(db)
+	err = a.UpdateTimestamp(db)
+	if err != nil {
+		ee.Message = "couldnt update timestamp on agent"
+		ee.Error = err
+		ee.Level = log.WarnLevel
+		ee.Print()
+	}
 
 	// load types
 
@@ -58,22 +72,31 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 	if (pd.CreatedAt == time.Time{}) {
 		pd.CreatedAt = time.Now()
 		// don't return??!??
-		internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.Create", ObjectID: pd.ProbeID, Message: "timestamp was not included in probe data", Error: err}.Print()
+		ee.Message = "timestamp not included in probe data"
+		ee.Error = err
+		ee.Level = log.WarnLevel
+		ee.Print()
 	}
 
 	mar, err := bson.Marshal(pd)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.Create", ObjectID: pd.ProbeID, Message: "error marshalling", Error: err}.ToError()
+		ee.Message = "unable to marshal"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	var b *bson.D
 	err = bson.Unmarshal(mar, &b)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.Create", ObjectID: pd.ProbeID, Message: "error unmarshalling", Error: err}.ToError()
+		ee.Message = "unable to unmarshal"
+		ee.Error = err
+		return ee.ToError()
 	}
 	result, err := db.Collection("probe_data").InsertOne(context.TODO(), b)
 	if err != nil {
-		return internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.Create", ObjectID: pd.ProbeID, Message: "error inserting document", Error: err}.ToError()
+		ee.Message = "error inserting doc"
+		ee.Error = err
+		return ee.ToError()
 	}
 
 	fmt.Printf("created probe data with id: %v\n", result.InsertedID)
@@ -81,15 +104,20 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 }
 
 func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID}
+
 	// todo get ProbeType from ProbeID??
 	pp := Probe{ID: pd.ProbeID}
 	probe, err := pp.Get(db)
 	if err != nil {
-		return nil, err
+		ee.Message = "unable to get probes from id"
+		ee.Error = err
+		return nil, ee.ToError()
 	}
 
 	if len(probe) == 0 {
-		return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "probe not found", Error: err}.ToError()
+		ee.Message = "no probes found"
+		return nil, ee.ToError()
 	}
 
 	switch probe[0].Type { // todo
@@ -97,14 +125,18 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 		// First, marshal the interface{} back to JSON
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal trafficsim", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		// Now you can unmarshal the JSON into your struct
 		var trafficSimClientStats TrafficSimClientStats
 		err = json.Unmarshal(jsonData, &trafficSimClientStats)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal trafficsim", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		// Return the successfully unmarshaled data
@@ -112,27 +144,35 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	case ProbeType_RPERF:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal rperf", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		var rperfData RPerfResults // Replace with the actual struct for RPERF data
 		err = json.Unmarshal(jsonData, &rperfData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal err", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		return rperfData, err
 	case ProbeType_MTR:
 		// First, marshal the interface{} back to JSON
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal mtr", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		// Now you can unmarshal the JSON into your struct
 		var mtrData MtrResult
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal mtr", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		// Return the successfully unmarshaled data
@@ -140,73 +180,95 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	case ProbeType_NETWORKINFO:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal netinfo", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		var mtrData NetResult // Replace with the actual struct for MTR data
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal netinfo", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		return mtrData, err
 	case ProbeType_PING:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal ping", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		var mtrData PingResult // Replace with the actual struct for MTR data
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal ping", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		return mtrData, err
 	case ProbeType_SPEEDTEST:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal speedtest", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		var mtrData SpeedTestResult // Replace with the actual struct for MTR data
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal speedtest result", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		err = pp.UpdateFirstProbeTarget(db, "ok")
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "error updating probe target to disable speedtests", Error: err}.ToError()
+			ee.Message = "error updating probe target"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		return mtrData, err
 	case ProbeType_SPEEDTEST_SERVERS:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal speedtest servers", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		var mtrData []SpeedTestServer // Replace with the actual struct for MTR data
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal speedtest servers", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		return mtrData, err
 	// Add cases for other probe types
 	case ProbeType_SYSTEMINFO:
 		jsonData, err := json.Marshal(pd.Data)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to marshal sysinfo", Error: err}.ToError()
+			ee.Message = "cannot marshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 
 		var mtrData CompleteSystemInfo // Replace with the actual struct for MTR data
 		err = json.Unmarshal(jsonData, &mtrData)
 		if err != nil {
-			return nil, internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID, Message: "unable to unmarshal sysinfo", Error: err}.ToError()
+			ee.Message = "cannot unmarshal"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		return mtrData, err
 
 	default:
-		// Handle unsupported probe types or return an error
+		// todo Handle unsupported probe types or return an error
 	}
 
 	return nil, nil
@@ -216,6 +278,8 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 // it will require the type to be sent in check, otherwise
 // the check id will be used
 func (probe *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeData, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe_data.GetData"}
+
 	opts := options.Find().SetLimit(req.Limit)
 
 	// Combined filter
@@ -223,6 +287,7 @@ func (probe *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeD
 	if probe.Agent != (primitive.ObjectID{0}) {
 		combinedFilter["agent"] = probe.Agent
 		//combinedFilter["type"] = c.Type
+		ee.ObjectID = probe.Agent
 	}
 
 	var timestampField = "data.stop_timestamp"
@@ -250,16 +315,21 @@ func (probe *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeD
 
 	cursor, err := db.Collection("probe_data").Find(context.TODO(), combinedFilter, opts)
 	if err != nil {
-		return nil, err
+		ee.Message = "cannot find probed data"
+		ee.Error = err
+		return nil, ee.ToError()
 	}
 
 	var results []bson.D
 	if err := cursor.All(context.TODO(), &results); err != nil {
-		return nil, err
+		ee.Message = "error cursoring results"
+		ee.Error = err
+		return nil, ee.ToError()
 	}
 
 	if len(results) == 0 {
-		return nil, errors.New("no data matches the provided check id")
+		ee.Error = errors.New("no data matches the provided check id")
+		return nil, ee.ToError()
 	}
 
 	var checkData []ProbeData
@@ -268,13 +338,15 @@ func (probe *Probe) GetData(req *ProbeDataRequest, db *mongo.Database) ([]ProbeD
 		var cData ProbeData
 		doc, err := bson.Marshal(r)
 		if err != nil {
-			log.Errorf("Error marshaling data: %s", err)
-			return nil, err
+			ee.Message = "error marshaling results"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		err = bson.Unmarshal(doc, &cData)
 		if err != nil {
-			log.Errorf("Error unmarshaling data: %s", err)
-			return nil, err
+			ee.Message = "error unmarshalling results"
+			ee.Error = err
+			return nil, ee.ToError()
 		}
 		checkData = append(checkData, cData)
 	}

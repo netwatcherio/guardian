@@ -394,6 +394,6 @@ func (a *Agent) Create(db *mongo.Database) error {
 	}
 
 	// todo output to loki??
-	log.Info("created agent with id: %v\n", result.InsertedID)
+	log.Infof("created agent with id: %s\n", result.InsertedID)
 	return nil
 }
