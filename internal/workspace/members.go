@@ -32,7 +32,7 @@ type NewWorkspaceMember struct {
 	Role  Role   `json:"role" form:"role"`
 }
 
-func (s *Site) GetMemberRole(memberID primitive.ObjectID) (Role, error) {
+func (s *Workspace) GetMemberRole(memberID primitive.ObjectID) (Role, error) {
 	for _, member := range s.Members {
 		if member.User == memberID {
 			return member.Role, nil
@@ -50,7 +50,7 @@ type MemberInfo struct {
 }
 
 // UpdateMemberRole updates the role of a member in the site and the database
-func (s *Site) UpdateMemberRole(memberID primitive.ObjectID, newRole Role, db *mongo.Database) error {
+func (s *Workspace) UpdateMemberRole(memberID primitive.ObjectID, newRole Role, db *mongo.Database) error {
 	// Find and update the member's role
 	found := false
 	for i, member := range s.Members {
@@ -81,7 +81,7 @@ func (s *Site) UpdateMemberRole(memberID primitive.ObjectID, newRole Role, db *m
 	return nil
 }
 
-func (s *Site) GetMemberInfos(db *mongo.Database) ([]MemberInfo, error) {
+func (s *Workspace) GetMemberInfos(db *mongo.Database) ([]MemberInfo, error) {
 	var memberInfos []MemberInfo
 
 	for _, member := range s.Members {
@@ -104,7 +104,7 @@ func (s *Site) GetMemberInfos(db *mongo.Database) ([]MemberInfo, error) {
 }
 
 // IsMember check if a user id is a member in the site
-func (s *Site) IsMember(id primitive.ObjectID) bool {
+func (s *Workspace) IsMember(id primitive.ObjectID) bool {
 	// check if the site contains the member with the provided id
 	for _, k := range s.Members { // k is object id of member,
 		if k.User == id {
@@ -116,7 +116,7 @@ func (s *Site) IsMember(id primitive.ObjectID) bool {
 }
 
 // AddMember Add a member to the site then update document
-func (s *Site) AddMember(id primitive.ObjectID, role Role, db *mongo.Database) error {
+func (s *Workspace) AddMember(id primitive.ObjectID, role Role, db *mongo.Database) error {
 	// add member with the provided role
 	if s.IsMember(id) {
 		return errors.New("already a member")
@@ -147,7 +147,7 @@ func (s *Site) AddMember(id primitive.ObjectID, role Role, db *mongo.Database) e
 }
 
 // RemoveMember removes a member from the site and updates the document
-func (s *Site) RemoveMember(id primitive.ObjectID, db *mongo.Database) error {
+func (s *Workspace) RemoveMember(id primitive.ObjectID, db *mongo.Database) error {
 	// Check if the member exists
 	if !s.IsMember(id) {
 		return errors.New("member not found")

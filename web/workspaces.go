@@ -16,7 +16,7 @@ func addRouteSites(r *Router) []*Route {
 	var tempRoutes []*Route
 
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Update Site",
+		Name: "Update Workspace",
 		Path: "/sites/update/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
@@ -36,9 +36,9 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := workspace.Site{ID: sId}
+			s := workspace.Workspace{ID: sId}
 
-			cAgent := new(workspace.Site)
+			cAgent := new(workspace.Workspace)
 			ctx.ReadJSON(&cAgent)
 
 			err = s.UpdateSiteDetails(r.DB, cAgent.Name, cAgent.Location, cAgent.Description)
@@ -84,7 +84,7 @@ func addRouteSites(r *Router) []*Route {
 		Type: RouteType_GET,
 	})
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "New Site",
+		Name: "New Workspace",
 		Path: "/sites",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
@@ -96,7 +96,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := new(workspace.Site)
+			s := new(workspace.Workspace)
 			err = ctx.ReadJSON(&s)
 			if err != nil {
 				return err
@@ -132,7 +132,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := workspace.Site{ID: siteId}
+			s := workspace.Workspace{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return ctx.JSON(err)
@@ -152,7 +152,7 @@ func addRouteSites(r *Router) []*Route {
 	})
 
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Site",
+		Name: "Workspace",
 		Path: "/sites/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
@@ -171,7 +171,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := workspace.Site{ID: siteId}
+			s := workspace.Workspace{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return ctx.JSON(err)
@@ -182,7 +182,7 @@ func addRouteSites(r *Router) []*Route {
 		Type: RouteType_GET,
 	})
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Delete Site",
+		Name: "Delete Workspace",
 		Path: "/sites/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
@@ -226,7 +226,7 @@ func addRouteSites(r *Router) []*Route {
 				return err
 			}
 
-			s := workspace.Site{ID: siteId}
+			s := workspace.Workspace{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return err
@@ -289,7 +289,7 @@ func addRouteSites(r *Router) []*Route {
 				return errors.New("only the owner can add owners")
 			}
 
-			s := workspace.Site{ID: siteId}
+			s := workspace.Workspace{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return err
@@ -330,7 +330,7 @@ func addRouteSites(r *Router) []*Route {
 				return err
 			}
 
-			s := workspace.Site{ID: siteId}
+			s := workspace.Workspace{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return err
@@ -398,7 +398,7 @@ func addRouteSites(r *Router) []*Route {
 		Type: RouteType_POST,
 	})
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Site Groups",
+		Name: "Workspace Groups",
 		Path: "/sites/{siteid}/groups",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {

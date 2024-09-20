@@ -13,7 +13,7 @@ func addRouteAgents(r *Router) []*Route {
 	var tempRoutes []*Route
 
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "Get Agents for Site",
+		Name: "Get Agents for Workspace",
 		Path: "/agents/site/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
@@ -33,7 +33,7 @@ func addRouteAgents(r *Router) []*Route {
 				return nil
 			}
 
-			a := workspace.Site{ID: aId}
+			a := workspace.Workspace{ID: aId}
 			err = a.Get(r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusInternalServerError)
@@ -82,7 +82,7 @@ func addRouteAgents(r *Router) []*Route {
 		Type: RouteType_GET,
 	})
 	tempRoutes = append(tempRoutes, &Route{
-		Name: "New Agent for Site",
+		Name: "New Agent for Workspace",
 		Path: "/agents/new/{siteid}",
 		JWT:  true,
 		Func: func(ctx iris.Context) error {
@@ -102,7 +102,7 @@ func addRouteAgents(r *Router) []*Route {
 				return nil
 			}
 
-			s := workspace.Site{ID: sId}
+			s := workspace.Workspace{ID: sId}
 			err = s.Get(r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusInternalServerError)

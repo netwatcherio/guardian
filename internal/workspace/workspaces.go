@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type Site struct {
+type Workspace struct {
 	ID          primitive.ObjectID `json:"id" bson:"_id"`
 	Name        string             `json:"name" bson:"name"`
 	Description string             `bson:"description" json:"description"`
@@ -22,7 +22,7 @@ type Site struct {
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
-func (s *Site) UpdateSiteDetails(db *mongo.Database, newName, newLocation, newDescription string) error {
+func (s *Workspace) UpdateSiteDetails(db *mongo.Database, newName, newLocation, newDescription string) error {
 	filter := bson.D{{"_id", s.ID}}
 	update := bson.D{
 		{"$set", bson.D{
@@ -38,7 +38,7 @@ func (s *Site) UpdateSiteDetails(db *mongo.Database, newName, newLocation, newDe
 		return err
 	}
 
-	// Optionally, update the Site struct to reflect the new state
+	// Optionally, update the Workspace struct to reflect the new state
 	s.Name = newName
 	s.Location = newLocation
 	s.Description = newDescription
@@ -47,7 +47,7 @@ func (s *Site) UpdateSiteDetails(db *mongo.Database, newName, newLocation, newDe
 	return nil
 }
 
-func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
+func (s *Workspace) Create(owner primitive.ObjectID, db *mongo.Database) error {
 	member := Member{
 		User: owner,
 		Role: MemberRole_OWNER,
@@ -88,7 +88,7 @@ func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
 
 // todo when deleting site remove from user document as well
 
-func (s *Site) GetAgents(db *mongo.Database) ([]*agent.Agent, error) {
+func (s *Workspace) GetAgents(db *mongo.Database) ([]*agent.Agent, error) {
 	var filter = bson.D{{"site", s.ID}}
 
 	cursor, err := db.Collection("agents").Find(context.TODO(), filter)
@@ -123,7 +123,7 @@ func (s *Site) GetAgents(db *mongo.Database) ([]*agent.Agent, error) {
 }
 
 // AgentCount returns count of agents for a site, or an error if its not successful
-func (s *Site) AgentCount(db *mongo.Database) (int, error) {
+func (s *Workspace) AgentCount(db *mongo.Database) (int, error) {
 	var filter = bson.D{{"site", s.ID}}
 
 	count, err := db.Collection("agents").CountDocuments(context.TODO(), filter)
@@ -134,7 +134,7 @@ func (s *Site) AgentCount(db *mongo.Database) (int, error) {
 	return int(count), nil
 }
 
-func GetSitesForMember(memberID primitive.ObjectID, db *mongo.Database) ([]Site, error) {
+func GetSitesForMember(memberID primitive.ObjectID, db *mongo.Database) ([]Workspace, error) {
 	// Define a filter to match sites where at least one member has the specified user ID.
 	filter := bson.M{"members": bson.M{"$elemMatch": bson.M{"user": memberID}}}
 
@@ -144,11 +144,11 @@ func GetSitesForMember(memberID primitive.ObjectID, db *mongo.Database) ([]Site,
 		return nil, err
 	}
 
-	var matchingSites []Site
+	var matchingSites []Workspace
 
-	// Iterate through the cursor and decode each site into a Site struct.
+	// Iterate through the cursor and decode each site into a Workspace struct.
 	for cursor.Next(context.Background()) {
-		var site Site
+		var site Workspace
 		if err := cursor.Decode(&site); err != nil {
 			return nil, err
 		}
@@ -165,7 +165,7 @@ func GetSitesForMember(memberID primitive.ObjectID, db *mongo.Database) ([]Site,
 }
 
 // Get a site from the provided ID
-func (s *Site) Get(db *mongo.Database) error {
+func (s *Workspace) Get(db *mongo.Database) error {
 
 	var filter = bson.D{{"_id", s.ID}}
 
@@ -191,7 +191,7 @@ func (s *Site) Get(db *mongo.Database) error {
 		return err
 	}
 
-	var site Site
+	var site Workspace
 	err = bson.Unmarshal(doc, &site)
 	if err != nil {
 		return err
@@ -208,7 +208,7 @@ func (s *Site) Get(db *mongo.Database) error {
 }
 
 // Delete data based on provided agent ID in checkData struct
-func (s *Site) Delete(db *mongo.Database) error {
+func (s *Workspace) Delete(db *mongo.Database) error {
 	// filter based on check ID
 	var filter = bson.D{{"_id", s.ID}}
 
@@ -220,7 +220,7 @@ func (s *Site) Delete(db *mongo.Database) error {
 	return nil
 }
 
-/*func (s *Site) SiteStats(db *mongo.Database) ([]*agent.Stats, error) {
+/*func (s *Workspace) SiteStats(db *mongo.Database) ([]*agent.Stats, error) {
 	var agentStats []*agent.Stats
 
 	agents, err := s.GetAgents(db)
