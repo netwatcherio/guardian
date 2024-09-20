@@ -43,12 +43,12 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 	pd.ID = primitive.NewObjectID()
 
 	pp := Probe{ID: pd.ProbeID}
-	_, err := pp.Get(db)
+	pp2, err := pp.Get(db)
 	if err != nil {
 		log.Error(err)
 	}
 
-	a := Agent{ID: pp.Agent}
+	a := Agent{ID: pp2[0].Agent}
 	_ = a.UpdateTimestamp(db)
 
 	// load types
