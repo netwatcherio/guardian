@@ -16,7 +16,7 @@ type ErrorFormat struct {
 	Package  string             `json:"package,omitempty"`
 }
 
-func (e ErrorFormat) string() (string, error) {
+func (e ErrorFormat) String() (string, error) {
 	marshal, err := json.Marshal(e)
 	if err != nil {
 		return "", err
@@ -26,6 +26,17 @@ func (e ErrorFormat) string() (string, error) {
 }
 
 func (e ErrorFormat) ToError() error {
-	logrus.Info(e.string())
-	return fmt.Errorf(e.string())
+	e.Print()
+	return fmt.Errorf(e.String())
+}
+
+func (e ErrorFormat) Print() {
+	switch e.Level.String() {
+	case "warning":
+		logrus.Warn(e.String())
+	case "error":
+		logrus.Error(e.String())
+	default:
+		logrus.Info(e.String())
+	}
 }

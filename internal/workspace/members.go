@@ -162,7 +162,7 @@ func (s *Site) RemoveMember(id primitive.ObjectID, db *mongo.Database) error {
 	}
 	s.Members = updatedMembers
 
-	// Log the updated members
+	// Print the updated members
 	j, _ := json.Marshal(s.Members)
 	log.Warnf("%s", j)
 

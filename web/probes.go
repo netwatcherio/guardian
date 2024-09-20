@@ -400,7 +400,7 @@ func addRouteProbes(r *Router) []*Route {
 		Func: func(ctx iris.Context) error {
 			ctx.ContentType("application/json") // "Application/json"
 
-			// Log content type for debugging
+			// Print content type for debugging
 			//log.Info("Content Type: ", ctx.GetHeader("Content-Type"))
 
 			t := GetClaims(ctx)
