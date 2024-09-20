@@ -207,7 +207,7 @@ func (r *AgentLogin) AgentLogin(ip string, db *mongo.Database) (string, error) {
 	ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.AgentLogin"}
 
 	if r.PIN == "" {
-		ee.Message = "unable to create session"
+		ee.Message = "invalid pin"
 		return "", ee.ToError()
 	}
 
@@ -230,12 +230,14 @@ func (r *AgentLogin) AgentLogin(ip string, db *mongo.Database) (string, error) {
 	if err != nil {
 		ee.Error = err
 		ee.Message = "error getting agent"
+		ee.Message += " - connecting ip: " + ip
 		return "", ee.ToError()
 	}
 
 	if u.Pin != r.PIN {
 		ee.Error = err
 		ee.Message = "pins do not match"
+		ee.Message += " - connecting ip: " + ip
 		return "", ee.ToError()
 	}
 
@@ -249,6 +251,7 @@ func (r *AgentLogin) AgentLogin(ip string, db *mongo.Database) (string, error) {
 	if err != nil {
 		ee.Error = err
 		ee.Message = "unable to create session"
+		ee.Message += " - connecting ip: " + ip
 		return "", ee.ToError()
 	}
 
