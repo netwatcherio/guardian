@@ -2,7 +2,9 @@
 
 ## Overview
 
-Guardian NetWatcher is the backend component of the NetWatcher suite. It facilitates communication between the frontend client and the metrics collecting agent, storing data in MongoDB. The system uses probes to collect various metrics like MTR, ping, rperf (simulated traffic), which the client uses to generate graphs and other visualizations.
+Guardian NetWatcher is the backend component of the NetWatcher suite. It facilitates communication between the frontend
+client and the metrics collecting agent, storing data in MongoDB. The system uses probes to collect various metrics like
+MTR, ping, rperf (simulated traffic), which the client uses to generate graphs and other visualizations.
 
 ## Environment Variables
 
@@ -14,7 +16,6 @@ MONGO_URI=<mongodb_connection_string>
 MAIN_DB=<database_name>
 KEY=<your_secret_key>
 ```
-
 
 **Note**: Replace the values with your actual configuration. Do not use example values in production.
 
@@ -68,8 +69,8 @@ volumes:
   mongodb_data:
 ```
 
-**Note**: Replace `<username>`, `<password>`, `<your_mongodb_host>`, and `<database_name>` with your actual MongoDB credentials and details.
-
+**Note**: Replace `<username>`, `<password>`, `<your_mongodb_host>`, and `<database_name>` with your actual MongoDB
+credentials and details.
 
 ## Building the Guardian Docker Image
 
@@ -105,7 +106,6 @@ ENV KEY=""
 CMD ["/app/main"]
 ```
 
-
 ## Caddy Configuration
 
 Here's an example Caddyfile configuration for the NetWatcher services:
@@ -124,8 +124,6 @@ app.netwatcher.io {
 }
 
 ```
-
-
 
 ## License
 

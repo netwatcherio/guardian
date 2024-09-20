@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"os"
 )
 
 type ErrorFormat struct {
@@ -27,16 +28,20 @@ func (e ErrorFormat) String() string {
 
 func (e ErrorFormat) ToError() error {
 	e.Print()
+	// todo send logs over to loki??!??
 	return fmt.Errorf(e.String())
 }
 
 func (e ErrorFormat) Print() {
-	switch e.Level.String() {
-	case "warning":
-		logrus.Warn(e.String())
-	case "error":
-		logrus.Error(e.String())
-	default:
-		logrus.Info(e.String())
+	// todo send over to loki as well??
+	if os.Getenv("DEBUG") == "true" {
+		switch e.Level.String() {
+		case "warning":
+			logrus.Warn(e.String())
+		case "error":
+			logrus.Error(e.String())
+		default:
+			logrus.Info(e.String())
+		}
 	}
 }

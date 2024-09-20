@@ -96,23 +96,35 @@ type Register struct {
 
 // Register returns error on fail, nil on success
 func (r *Register) Register(db *mongo.Database) (string, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.Register"}
+
 	if r.FirstName == "" {
-		return "", errors.New("invalid first name")
+		ee.Message = "invalid first name"
+		ee.Print()
+		return "", errors.New(ee.Message)
 	}
 	if r.LastName == "" {
-		return "", errors.New("invalid last name")
+		ee.Message = "invalid last name"
+		ee.Print()
+		return "", errors.New(ee.Message)
 	}
 	if r.Email == "" {
+		ee.Message = "invalid email"
+		ee.Print()
 		// TODO validate email
-		return "", errors.New("invalid email name")
+		return "", errors.New(ee.Message)
 	}
 	if r.Password == "" {
-		return "", errors.New("invalid password, please ensure passwords match")
+		ee.Message = "invalid password"
+		ee.Print()
+		return "", errors.New(ee.Message)
 	}
 
 	pwd, err := bcrypt.GenerateFromPassword([]byte(r.Password), 10)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to generate bcrypt password"
+		return "", ee.ToError()
 	}
 
 	user := users.User{
@@ -128,7 +140,9 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 
 	err = user.Create(db)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to create user"
+		return "", ee.ToError()
 	}
 
 	session := Session{
@@ -137,12 +151,16 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 	}
 	err = session.Create(db)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to create session"
+		return "", ee.ToError()
 	}
 
 	out, err := user.FromID(db)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to get user from id"
+		return "", ee.ToError()
 	}
 	// Create the Claims
 	// todo make this more copiable? don't manually specify the mappedClaims?
@@ -157,7 +175,9 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 	// Generate encoded token and send it as response.
 	t, err := token.SignedString([]byte(os.Getenv("KEY")))
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to create token signed string"
+		return "", ee.ToError()
 	}
 
 	outMap := map[string]any{
@@ -167,7 +187,9 @@ func (r *Register) Register(db *mongo.Database) (string, error) {
 
 	bytes, err := json.Marshal(outMap)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to marshal session output"
+		return "", ee.ToError()
 	}
 
 	return string(bytes), nil
@@ -181,28 +203,37 @@ type AgentLogin struct {
 
 // AgentLogin returns error on fail, nil on success
 func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.AgentLogin"}
+
 	if r.PIN == "" {
-		return "", errors.New("invalid pin")
+		ee.Message = "unable to create session"
+		return "", ee.ToError()
 	}
 
 	if r.ID == "" {
-		return "", errors.New("invalid id")
+		ee.Message = "invalid agent id"
+		return "", ee.ToError()
 	}
 
 	aId, err := primitive.ObjectIDFromHex(r.ID)
 
 	if err != nil {
-		return "", err
+		ee.Error = err
+		return "", ee.ToError()
 	}
 
 	u := agent.Agent{ID: aId}
 	err = u.Get(db)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "error getting agent"
+		return "", ee.ToError()
 	}
 
 	if u.Pin != r.PIN {
-		return "", errors.New("pins do not match")
+		ee.Error = err
+		ee.Message = "pins do not match"
+		return "", ee.ToError()
 	}
 
 	session := Session{
@@ -212,12 +243,16 @@ func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
 
 	err = session.Create(db)
 	if err != nil {
-		return "", err
+		ee.Error = err
+		ee.Message = "unable to create session"
+		return "", ee.ToError()
 	}
 
 	err = u.UpdateAgentVersion(r.AgentVersion, db)
 	if err != nil {
-		log.Warnf("failed to update agent version for %s", u.ID)
+		ee.Level = log.WarnLevel
+		ee.Message = "unable to update agent version"
+		ee.Print()
 	}
 
 	// Create the Claims
@@ -232,7 +267,9 @@ func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
 	// Generate encoded token and send it as response.
 	t, err := token.SignedString([]byte(os.Getenv("KEY")))
 	if err != nil {
-		return "", err
+		ee.Message = "unable to generate signed string"
+		ee.Error = err
+		return "", ee.ToError()
 	}
 
 	out := map[string]any{
@@ -242,7 +279,9 @@ func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
 
 	bytes, err := json.Marshal(out)
 	if err != nil {
-		return "", err
+		ee.Message = "unable to marshal output"
+		ee.Error = err
+		return "", ee.ToError()
 	}
 
 	return string(bytes), nil
