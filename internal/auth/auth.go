@@ -23,8 +23,9 @@ type Login struct {
 
 // Login returns error on fail, nil on success
 func (r *Login) Login(ip string, db *mongo.Database) (string, error) {
+	ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login"}
 	if r.Email == "" {
-		ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login", Message: "invalid email address"}
+		ee.Message = "invalid email"
 		ee.Print()
 		return "", fmt.Errorf(ee.Message)
 	}
@@ -32,12 +33,15 @@ func (r *Login) Login(ip string, db *mongo.Database) (string, error) {
 	u := users.User{Email: r.Email}
 	user, err := u.FromEmail(db)
 	if err != nil {
-		return "", err
+		ee.Message = "invalid email"
+		ee.Print()
+		return "", fmt.Errorf(ee.Message)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.Password))
 	if err != nil {
-		ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login", ObjectID: user.ID, Message: "invalid password"}
+		ee.Message = "invalid password"
+		ee.Message += " - connecting ip: " + ip
 		ee.Print()
 		return "", fmt.Errorf(ee.Message)
 	}
@@ -50,7 +54,7 @@ func (r *Login) Login(ip string, db *mongo.Database) (string, error) {
 
 	err = session.Create(db)
 	if err != nil {
-		ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login", ObjectID: user.ID, Message: "unable to create session", Error: err}
+		ee.Message = "unable to create session"
 		ee.Print()
 		return "", fmt.Errorf(ee.Message)
 	}
@@ -67,9 +71,9 @@ func (r *Login) Login(ip string, db *mongo.Database) (string, error) {
 	// Generate encoded token and send it as response.
 	t, err := token.SignedString([]byte(os.Getenv("KEY")))
 	if err != nil {
-		ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login", Message: "unable to generate session token", Error: err}
+		ee.Message = "unable to sign token string"
 		ee.Print()
-		return "", err
+		return "", fmt.Errorf(ee.Message)
 	}
 
 	out := map[string]any{
@@ -79,7 +83,7 @@ func (r *Login) Login(ip string, db *mongo.Database) (string, error) {
 
 	bytes, err := json.Marshal(out)
 	if err != nil {
-		ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login", Message: "unable to marshal token"}
+		ee.Message = "unable to marshal"
 		ee.Print()
 		return "", fmt.Errorf(ee.Message)
 	}
