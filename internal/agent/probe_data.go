@@ -49,10 +49,7 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 	}
 
 	a := Agent{ID: pp.Agent}
-	err = a.UpdateTimestamp(db)
-	if err != nil {
-		log.Error(err)
-	}
+	_ = a.UpdateTimestamp(db)
 
 	// load types
 
