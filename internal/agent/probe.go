@@ -204,7 +204,7 @@ func (probe *Probe) Create(db *mongo.Database) error {
 		ee.Error = err
 		return ee.ToError()
 	}
-	result, err := db.Collection("probes").InsertOne(context.TODO(), b)
+	_, err = db.Collection("probes").InsertOne(context.TODO(), b)
 	if err != nil {
 		ee.Message = "error inserting into probes"
 		ee.Error = err
