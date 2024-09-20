@@ -79,19 +79,19 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 				// with `websocket.GetContext` you can retrieve the Iris' `Context`.
 				ctx := websocket.GetContext(nsConn.Conn)
 
-				log.Printf("[%s] connected to namespace [%s] with IP [%s]",
+				log.Infof("[%s] connected to namespace [%s] with IP [%s]",
 					nsConn, msg.Namespace,
 					ctx.RemoteAddr())
 				return nil
 			},
 			websocket.OnNamespaceDisconnect: func(nsConn *websocket.NSConn, msg websocket.Message) error {
 				// todo update agent status to be offline??
-				log.Printf("[%s] disconnected from namespace [%s]", nsConn, msg.Namespace)
+				log.Infof("[%s] disconnected from namespace [%s]", nsConn, msg.Namespace)
 				return nil
 			},
 			"probe_get": func(nsConn *websocket.NSConn, msg websocket.Message) error {
 				// room.String() returns -> NSConn.String() returns -> Conn.String() returns -> Conn.ID()
-				log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
+				// log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
 
 				session, err := auth.GetSessionFromWSConn(nsConn.String(), r.DB)
 				if err != nil {
@@ -132,7 +132,7 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 			},
 			"probe_post": func(nsConn *websocket.NSConn, msg websocket.Message) error {
 				// room.String() returns -> NSConn.String() returns -> Conn.String() returns -> Conn.ID()
-				log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
+				// log.Printf("[%s] sent: %s", nsConn, string(msg.Body))
 
 				session, err := auth.GetSessionFromWSConn(nsConn.String(), r.DB)
 				if err != nil {
