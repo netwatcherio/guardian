@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -92,14 +91,12 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 		ee.Error = err
 		return ee.ToError()
 	}
-	result, err := db.Collection("probe_data").InsertOne(context.TODO(), b)
+	_, err = db.Collection("probe_data").InsertOne(context.TODO(), b)
 	if err != nil {
 		ee.Message = "error inserting doc"
 		ee.Error = err
 		return ee.ToError()
 	}
-
-	fmt.Printf("created probe data with id: %v\n", result.InsertedID)
 	return nil
 }
 

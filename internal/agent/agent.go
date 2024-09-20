@@ -351,7 +351,7 @@ func (a *Agent) Create(db *mongo.Database) error {
 		ee.Error = err
 		return ee.ToError()
 	}
-	result, err := db.Collection("agents").InsertOne(context.TODO(), b)
+	_, err = db.Collection("agents").InsertOne(context.TODO(), b)
 	if err != nil {
 		ee.Message = "error during agent creation"
 		ee.Error = err
@@ -394,6 +394,6 @@ func (a *Agent) Create(db *mongo.Database) error {
 	}
 
 	// todo output to loki??
-	log.Infof("created agent with id: %s\n", result.InsertedID)
+	//log.Infof("created agent with id: %s\n", result.InsertedID)
 	return nil
 }

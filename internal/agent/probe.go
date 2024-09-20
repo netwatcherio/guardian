@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -212,7 +211,7 @@ func (probe *Probe) Create(db *mongo.Database) error {
 		return ee.ToError()
 	}
 
-	fmt.Printf("created agent check with id: %v\n", result.InsertedID)
+	//fmt.Printf("created agent check with id: %v\n", result.InsertedID)
 	return nil
 }
 
