@@ -3,13 +3,12 @@ package agent
 import (
 	"context"
 	"crypto/rand"
-	"errors"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"io"
+	"nw-guardian/internal"
 	"regexp"
 	"strconv"
 	"time"
@@ -63,7 +62,7 @@ func UpdateProbeTarget(db *mongo.Database, probeID primitive.ObjectID, newTarget
 
 	_, err := db.Collection("probes").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return fmt.Errorf("failed to update probe target: %v", err)
+		return internal.ErrorFormat{Package: "internal.agent", Function: "UpdateProbeTarget", Level: log.ErrorLevel, ObjectID: probeID, Message: "unable to update probe target", Error: err}.ToError()
 	}
 
 	return nil
@@ -107,7 +106,7 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 				}
 				atoi, err := strconv.Atoi(v)
 				if err != nil {
-					return err
+					return internal.ErrorFormat{Package: "internal.agent", Function: "UpdateTimestamp", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to get version for agent", Error: err}.ToError()
 				}
 
 				splitVer = append(splitVer, atoi)
@@ -117,7 +116,7 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 				probe := Probe{Agent: a.ID}
 				pps, err2 := probe.GetAllProbesForAgent(db)
 				if err2 != nil {
-					return err2
+					return internal.ErrorFormat{Package: "internal.agent", Function: "UpdateTimestamp", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to get all probes for agent", Error: err2}.ToError()
 				}
 
 				hasSpeedtestServers := false
@@ -137,7 +136,13 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 					s2 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST_SERVERS}
 					err = s2.Create(db)
 					if err != nil {
-						return err
+						return internal.ErrorFormat{
+							Package:  "agent",
+							Function: "UpdateTimestamp",
+							Level:    log.ErrorLevel,
+							ObjectID: a.ID,
+							Message:  "unable to create speedtest servers probe for agent",
+							Error:    err}.ToError()
 					}
 				}
 
@@ -147,7 +152,7 @@ func (a *Agent) UpdateTimestamp(db *mongo.Database) error {
 					s3 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST, Config: ProbeConfig{Target: []ProbeTarget{target}}}
 					err = s3.Create(db)
 					if err != nil {
-						return err
+						return internal.ErrorFormat{Package: "internal.agent", Function: "UpdateTimestamp", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to create speedtest probe for agent", Error: err}.ToError()
 					}
 				}
 			}
@@ -164,7 +169,7 @@ func (a *Agent) UpdateAgentVersion(version string, db *mongo.Database) error {
 
 	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "UpdateAgentVersion", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to update agent version", Error: err}.ToError()
 	}
 
 	return nil
@@ -177,7 +182,7 @@ func (a *Agent) Initialize(db *mongo.Database) error {
 
 	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Initialize", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to initialize agent", Error: err}.ToError()
 	}
 
 	return nil
@@ -190,12 +195,12 @@ func DeleteAgent(db *mongo.Database, agentID primitive.ObjectID) error {
 
 	err := DeleteProbesByAgentID(db, agentID)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "DeleteAgent", Level: log.ErrorLevel, ObjectID: agentID, Message: "unable to delete probes by agent id", Error: err}.ToError()
 	}
 
 	_, err = db.Collection("agents").DeleteMany(context.TODO(), filter)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "DeleteAgent", Level: log.ErrorLevel, ObjectID: agentID, Message: "unable to delete agent by id", Error: err}.ToError()
 	}
 
 	return nil
@@ -212,7 +217,7 @@ func (a *Agent) Deactivate(db *mongo.Database) error {
 	}
 	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Deactivate", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to deactivate agent", Error: err}.ToError()
 	}
 
 	return nil
@@ -224,7 +229,7 @@ func (a *Agent) DeInitialize(db *mongo.Database) error {
 
 	_, err := db.Collection("agents").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "DeInitialize", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to de-initialize agent", Error: err}.ToError()
 	}
 
 	return nil
@@ -235,7 +240,8 @@ func GeneratePin(max int) string {
 	b := make([]byte, max)
 	n, err := io.ReadAtLeast(rand.Reader, b, max)
 	if n != max {
-		panic(err)
+		log.Error(err)
+		return "6969420" // the gamer numbers (XD rawr)
 	}
 	for i := 0; i < len(b); i++ {
 		b[i] = table[int(b[i])%len(table)]
@@ -248,33 +254,29 @@ func (a *Agent) Get(db *mongo.Database) error {
 
 	cursor, err := db.Collection("agents").Find(context.TODO(), filter)
 	if err != nil {
-		log.Errorf("error searching database for agent: %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Get", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to search for agent by id", Error: err}.ToError()
 	}
 	var results []bson.D
 	if err = cursor.All(context.TODO(), &results); err != nil {
-		log.Errorf("error cursoring through agents: %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Get", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error cursoring through agents", Error: err}.ToError()
 	}
 
 	if len(results) > 1 {
-		return errors.New("multiple agents match when getting using id") // edge case??
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Get", Level: log.ErrorLevel, ObjectID: a.ID, Message: "multiple agents match when getting using id", Error: err}.ToError() // edge case??
 	}
 
 	if len(results) == 0 {
-		return errors.New("no agents match when getting using id")
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Get", Level: log.ErrorLevel, ObjectID: a.ID, Message: "no agents match", Error: err}.ToError()
 	}
 
 	doc, err := bson.Marshal(&results[0])
 	if err != nil {
-		log.Errorf("1 %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Get", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to marshal get agents results[0]", Error: err}.ToError()
 	}
 
 	err = bson.Unmarshal(doc, &a)
 	if err != nil {
-		log.Errorf("2 %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Get", Level: log.ErrorLevel, ObjectID: a.ID, Message: "unable to marshal get agents result", Error: err}.ToError()
 	}
 
 	return nil
@@ -290,48 +292,46 @@ func (a *Agent) Create(db *mongo.Database) error {
 
 	mar, err := bson.Marshal(a)
 	if err != nil {
-		log.Errorf("error marshalling agent data when creating: %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error marshalling agent data when creating agent", Error: err}.ToError()
 	}
 	var b *bson.D
 	err = bson.Unmarshal(mar, &b)
 	if err != nil {
-		log.Errorf("error unmarhsalling agent data when creating: %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error unmarshalling agent when creating agent", Error: err}.ToError()
 	}
 	result, err := db.Collection("agents").InsertOne(context.TODO(), b)
 	if err != nil {
-		log.Errorf("error inserting to database: %s", err)
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error creating agent", Error: err}.ToError()
 	}
 
 	// also create netinfo probe
 	probe := Probe{Agent: a.ID, Type: ProbeType_NETWORKINFO}
 	err = probe.Create(db)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error creating network info probe", Error: err}.ToError()
 	}
 
 	// also create system info probe
 	ss := Probe{Agent: a.ID, Type: ProbeType_SYSTEMINFO}
 	err = ss.Create(db)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error creating system info probe", Error: err}.ToError()
 	}
 
 	s2 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST_SERVERS}
 	err = s2.Create(db)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error creating speedtest servers probe", Error: err}.ToError()
 	}
 	target := ProbeTarget{Target: "ok"}
 
 	s3 := Probe{Agent: a.ID, Type: ProbeType_SPEEDTEST, Config: ProbeConfig{Target: []ProbeTarget{target}}}
 	err = s3.Create(db)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "Create", Level: log.ErrorLevel, ObjectID: a.ID, Message: "error creating speedtest probe", Error: err}.ToError()
 	}
 
-	fmt.Printf("created agent with id: %v\n", result.InsertedID)
+	// todo output to loki??
+	log.Info("created agent with id: %v\n", result.InsertedID)
 	return nil
 }

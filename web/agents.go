@@ -6,7 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"nw-guardian/internal/agent"
-	"nw-guardian/internal/site"
+	"nw-guardian/internal/workspace"
 )
 
 func addRouteAgents(r *Router) []*Route {
@@ -33,7 +33,7 @@ func addRouteAgents(r *Router) []*Route {
 				return nil
 			}
 
-			a := site.Site{ID: aId}
+			a := workspace.Site{ID: aId}
 			err = a.Get(r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusInternalServerError)
@@ -102,7 +102,7 @@ func addRouteAgents(r *Router) []*Route {
 				return nil
 			}
 
-			s := site.Site{ID: sId}
+			s := workspace.Site{ID: sId}
 			err = s.Get(r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusInternalServerError)

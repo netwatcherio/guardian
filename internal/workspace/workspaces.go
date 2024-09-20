@@ -1,4 +1,4 @@
-package site
+package workspace
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type Site struct {
 	Name        string             `json:"name" bson:"name"`
 	Description string             `bson:"description" json:"description"`
 	Location    string             `json:"location" bson:"location"` // logical/physical location
-	Members     []SiteMember       `json:"members" bson:"members"`
+	Members     []Member           `json:"members" bson:"members"`
 	// search for nested member id's when finding sites that belong to a user, is this more db intensive? does it matter? big O?
 	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
@@ -48,9 +48,9 @@ func (s *Site) UpdateSiteDetails(db *mongo.Database, newName, newLocation, newDe
 }
 
 func (s *Site) Create(owner primitive.ObjectID, db *mongo.Database) error {
-	member := SiteMember{
+	member := Member{
 		User: owner,
-		Role: SiteMemberRole_OWNER,
+		Role: MemberRole_OWNER,
 	}
 
 	s.Members = append(s.Members, member)

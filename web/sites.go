@@ -8,8 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"nw-guardian/internal/agent"
-	"nw-guardian/internal/site"
 	"nw-guardian/internal/users"
+	"nw-guardian/internal/workspace"
 )
 
 func addRouteSites(r *Router) []*Route {
@@ -36,9 +36,9 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := site.Site{ID: sId}
+			s := workspace.Site{ID: sId}
 
-			cAgent := new(site.Site)
+			cAgent := new(workspace.Site)
 			ctx.ReadJSON(&cAgent)
 
 			err = s.UpdateSiteDetails(r.DB, cAgent.Name, cAgent.Location, cAgent.Description)
@@ -67,7 +67,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			getSites, err := site.GetSitesForMember(t.ID, r.DB)
+			getSites, err := workspace.GetSitesForMember(t.ID, r.DB)
 			if err != nil {
 				return err
 			}
@@ -96,7 +96,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := new(site.Site)
+			s := new(workspace.Site)
 			err = ctx.ReadJSON(&s)
 			if err != nil {
 				return err
@@ -132,7 +132,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := site.Site{ID: siteId}
+			s := workspace.Site{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return ctx.JSON(err)
@@ -171,7 +171,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			s := site.Site{ID: siteId}
+			s := workspace.Site{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return ctx.JSON(err)
@@ -219,14 +219,14 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			info := site.MemberInfo{}
+			info := workspace.MemberInfo{}
 
 			err = ctx.ReadJSON(&info)
 			if err != nil {
 				return err
 			}
 
-			s := site.Site{ID: siteId}
+			s := workspace.Site{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return err
@@ -269,7 +269,7 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			info := site.MemberInfo{}
+			info := workspace.MemberInfo{}
 
 			err = ctx.ReadJSON(&info)
 			if err != nil {
@@ -285,11 +285,11 @@ func addRouteSites(r *Router) []*Route {
 
 			info.ID = uuu.ID
 
-			if info.Role == site.SiteMemberRole_OWNER {
+			if info.Role == workspace.MemberRole_OWNER {
 				return errors.New("only the owner can add owners")
 			}
 
-			s := site.Site{ID: siteId}
+			s := workspace.Site{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return err
@@ -323,14 +323,14 @@ func addRouteSites(r *Router) []*Route {
 				return nil
 			}
 
-			info := site.MemberInfo{}
+			info := workspace.MemberInfo{}
 
 			err = ctx.ReadJSON(&info)
 			if err != nil {
 				return err
 			}
 
-			s := site.Site{ID: siteId}
+			s := workspace.Site{ID: siteId}
 			err = s.Get(r.DB)
 			if err != nil {
 				return err
@@ -345,7 +345,7 @@ func addRouteSites(r *Router) []*Route {
 				return err
 			}
 
-			if role == site.SiteMemberRole_OWNER {
+			if role == workspace.MemberRole_OWNER {
 				ctx.StatusCode(http.StatusInternalServerError)
 				return errors.New("the owner cannot be removed")
 			}

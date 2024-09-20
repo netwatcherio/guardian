@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"nw-guardian/internal"
 	"strings"
 	"time"
 )
@@ -63,13 +64,13 @@ func DeleteProbesByAgentID(db *mongo.Database, agentID primitive.ObjectID) error
 	p := Probe{Agent: agentID}
 	get, err := p.Get(db)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "DeleteProbesByAgentID", ObjectID: agentID, Message: "unable to get probes by agent id", Error: err}.ToError()
 	}
 
 	for _, probe := range get {
 		err := DeleteProbeDataByProbeID(db, probe.ID)
 		if err != nil {
-			log.Error(err)
+			return internal.ErrorFormat{Package: "internal.agent", Function: "DeleteProbesByAgentID", ObjectID: agentID, Message: "error deleting probes by id", Error: err}.ToError()
 		}
 	}
 
@@ -80,7 +81,7 @@ func DeleteProbesByAgentID(db *mongo.Database, agentID primitive.ObjectID) error
 	// Perform the deletion
 	_, err = db.Collection("probes").DeleteMany(context.TODO(), filter)
 	if err != nil {
-		return err
+		return internal.ErrorFormat{Package: "internal.agent", Function: "DeleteProbesByAgentID", ObjectID: agentID, Message: "failed to delete probes for agent", Error: err}.ToError()
 	}
 
 	return nil

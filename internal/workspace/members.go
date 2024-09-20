@@ -1,4 +1,4 @@
-package site
+package workspace
 
 import (
 	"context"
@@ -11,28 +11,28 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type SiteMemberRole string
+type Role string
 
 const (
-	SiteMemberRole_READONLY  SiteMemberRole = "READ_ONLY"  // view site only, no editing
-	SiteMemberRole_READWRITE SiteMemberRole = "READ_WRITE" // view, add agents, probes, etc.
-	SiteMemberRole_ADMIN     SiteMemberRole = "ADMIN"      // general admin, can add members, cannot remove owner or members
-	SiteMemberRole_OWNER     SiteMemberRole = "OWNER"      // super admin
+	MemberRole_READONLY  Role = "READ_ONLY"  // view site only, no editing
+	MemberRole_READWRITE Role = "READ_WRITE" // view, add agents, probes, etc.
+	MemberRole_ADMIN     Role = "ADMIN"      // general admin, can add members, cannot remove owner or members
+	MemberRole_OWNER     Role = "OWNER"      // super admin
 )
 
-type SiteMember struct {
-	User primitive.ObjectID `bson:"user"json:"user"`
-	Role SiteMemberRole     `bson:"role"json:"role"`
+type Member struct {
+	User primitive.ObjectID `bson:"user" json:"user"`
+	Role Role               `bson:"role" json:"role"`
 	// roles: 0=READ ONLY, 1=READ-WRITE (Create only), 2=ADMIN (Delete Agents), 3=OWNER (Delete Sites)
 	// ADMINS can regenerate agent pins
 }
 
-type NewSiteMember struct {
-	Email string         `json:"email"form:"email"`
-	Role  SiteMemberRole `json:"role"form:"role"`
+type NewWorkspaceMember struct {
+	Email string `json:"email" form:"email"`
+	Role  Role   `json:"role" form:"role"`
 }
 
-func (s *Site) GetMemberRole(memberID primitive.ObjectID) (SiteMemberRole, error) {
+func (s *Site) GetMemberRole(memberID primitive.ObjectID) (Role, error) {
 	for _, member := range s.Members {
 		if member.User == memberID {
 			return member.Role, nil
@@ -45,12 +45,12 @@ type MemberInfo struct {
 	Email     string             `bson:"email"json:"email"` // email, will be used as username
 	FirstName string             `bson:"firstName"json:"firstName"`
 	LastName  string             `bson:"lastName"json:"lastName"`
-	Role      SiteMemberRole     `bson:"role"json:"role"`
+	Role      Role               `bson:"role"json:"role"`
 	ID        primitive.ObjectID `json:"id"bson:"_id"`
 }
 
 // UpdateMemberRole updates the role of a member in the site and the database
-func (s *Site) UpdateMemberRole(memberID primitive.ObjectID, newRole SiteMemberRole, db *mongo.Database) error {
+func (s *Site) UpdateMemberRole(memberID primitive.ObjectID, newRole Role, db *mongo.Database) error {
 	// Find and update the member's role
 	found := false
 	for i, member := range s.Members {
@@ -116,13 +116,13 @@ func (s *Site) IsMember(id primitive.ObjectID) bool {
 }
 
 // AddMember Add a member to the site then update document
-func (s *Site) AddMember(id primitive.ObjectID, role SiteMemberRole, db *mongo.Database) error {
+func (s *Site) AddMember(id primitive.ObjectID, role Role, db *mongo.Database) error {
 	// add member with the provided role
 	if s.IsMember(id) {
 		return errors.New("already a member")
 	}
 
-	newMember := SiteMember{
+	newMember := Member{
 		User: id,
 		Role: role,
 	}
@@ -154,7 +154,7 @@ func (s *Site) RemoveMember(id primitive.ObjectID, db *mongo.Database) error {
 	}
 
 	// Remove the member with the provided ID
-	var updatedMembers []SiteMember
+	var updatedMembers []Member
 	for _, member := range s.Members {
 		if member.User != id {
 			updatedMembers = append(updatedMembers, member)

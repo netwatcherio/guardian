@@ -9,6 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// todo add better error handling??!??
+
 type Group struct {
 	ID          primitive.ObjectID   `json:"id" bson:"_id"`
 	SiteID      primitive.ObjectID   `json:"site,omitempty" bson:"site"`
