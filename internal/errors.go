@@ -16,13 +16,13 @@ type ErrorFormat struct {
 	Package  string             `json:"package,omitempty"`
 }
 
-func (e ErrorFormat) String() (string, error) {
+func (e ErrorFormat) String() string {
 	marshal, err := json.Marshal(e)
 	if err != nil {
-		return "", err
+		return ""
 	}
 
-	return string(marshal), nil
+	return string(marshal)
 }
 
 func (e ErrorFormat) ToError() error {

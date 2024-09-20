@@ -3,11 +3,13 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
+	"nw-guardian/internal"
 	"nw-guardian/internal/agent"
 	"nw-guardian/internal/users"
 	"os"
@@ -22,7 +24,9 @@ type Login struct {
 // Login returns error on fail, nil on success
 func (r *Login) Login(db *mongo.Database) (string, error) {
 	if r.Email == "" {
-		return "", errors.New("invalid email address")
+		ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.Login", Message: "invalid email address"}
+		ee.Print()
+		return "", fmt.Errorf(ee.Message)
 	}
 
 	u := users.User{Email: r.Email}
@@ -33,7 +37,9 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.Password))
 	if err != nil {
-		return "", errors.New("invalid password, please ensure passwords match")
+		ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.Login", ObjectID: user.ID, Message: "invalid password"}
+		ee.Print()
+		return "", fmt.Errorf(ee.Message)
 	}
 
 	session := Session{
@@ -43,7 +49,9 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 
 	err = session.Create(db)
 	if err != nil {
-		return "", err
+		ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.Login", ObjectID: user.ID, Message: "unable to create session", Error: err}
+		ee.Print()
+		return "", fmt.Errorf(ee.Message)
 	}
 
 	// Create the Claims
@@ -58,6 +66,8 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 	// Generate encoded token and send it as response.
 	t, err := token.SignedString([]byte(os.Getenv("KEY")))
 	if err != nil {
+		ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.Login", Message: "unable to generate session token", Error: err}
+		ee.Print()
 		return "", err
 	}
 
@@ -68,7 +78,9 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 
 	bytes, err := json.Marshal(out)
 	if err != nil {
-		return "", err
+		ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "auth.Login", Message: "unable to marshal token"}
+		ee.Print()
+		return "", fmt.Errorf(ee.Message)
 	}
 
 	return string(bytes), nil
