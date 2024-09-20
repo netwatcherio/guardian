@@ -23,7 +23,7 @@ func addRouteAuth(r *Router) []*Route {
 				return nil
 			}
 
-			t, err := l.Login(r.DB)
+			t, err := l.Login(ctx.RemoteAddr(), r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusUnauthorized)
 				return nil

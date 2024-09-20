@@ -15,11 +15,12 @@ import (
 )
 
 type Session struct {
-	ID        primitive.ObjectID `json:"item_id"bson:"item_id"`
-	IsAgent   bool               `json:"is_agent"bson:"is_agent"`
-	SessionID primitive.ObjectID `json:"session_id"bson:"_id"`
-	Expiry    time.Time          `json:"expiry"bson:"expiry"`
-	WSConn    string             `json:"ws_conn"bson:"ws_conn"`
+	ID        primitive.ObjectID `json:"item_id" bson:"item_id"`
+	IsAgent   bool               `json:"is_agent" bson:"is_agent"`
+	SessionID primitive.ObjectID `json:"session_id" bson:"_id"`
+	Expiry    time.Time          `json:"expiry" bson:"expiry"`
+	WSConn    string             `json:"ws_conn" bson:"ws_conn"`
+	IP        string             `json:"ip,omitempty" bson:"ip"`
 }
 
 // Create a session from user id, and include expiry, return error if fails

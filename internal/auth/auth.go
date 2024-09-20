@@ -22,7 +22,7 @@ type Login struct {
 }
 
 // Login returns error on fail, nil on success
-func (r *Login) Login(db *mongo.Database) (string, error) {
+func (r *Login) Login(ip string, db *mongo.Database) (string, error) {
 	if r.Email == "" {
 		ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.Login", Message: "invalid email address"}
 		ee.Print()
@@ -45,6 +45,7 @@ func (r *Login) Login(db *mongo.Database) (string, error) {
 	session := Session{
 		ID:      user.ID,
 		IsAgent: false,
+		IP:      ip,
 	}
 
 	err = session.Create(db)
@@ -202,7 +203,7 @@ type AgentLogin struct {
 }
 
 // AgentLogin returns error on fail, nil on success
-func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
+func (r *AgentLogin) AgentLogin(ip string, db *mongo.Database) (string, error) {
 	ee := internal.ErrorFormat{Package: "internal.auth", Level: log.ErrorLevel, Function: "auth.AgentLogin"}
 
 	if r.PIN == "" {
@@ -241,6 +242,7 @@ func (r *AgentLogin) AgentLogin(db *mongo.Database) (string, error) {
 	session := Session{
 		ID:      u.ID,
 		IsAgent: true,
+		IP:      ip,
 	}
 
 	err = session.Create(db)
