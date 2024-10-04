@@ -235,6 +235,7 @@ func (r *AgentLogin) AgentLogin(ip string, db *mongo.Database) (string, error) {
 		ee.Error = err
 		ee.Message = "error getting agent"
 		ee.Message += " - connecting ip: " + ip
+		ee.Message += " - pin: " + r.PIN
 		return "", ee.ToError()
 	}
 
