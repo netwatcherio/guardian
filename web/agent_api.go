@@ -27,7 +27,7 @@ func addRouteAgentAPI(r *Router) []*Route {
 				return nil
 			}
 
-			t, err := l.AgentLogin(ctx.RemoteAddr(), r.DB)
+			t, err := l.AgentLogin(ctx.Values().GetString("client_ip"), r.DB)
 			if err != nil {
 				ctx.StatusCode(http.StatusUnauthorized)
 				return nil

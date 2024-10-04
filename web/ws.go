@@ -81,7 +81,7 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 
 				log.Infof("[%s] connected to namespace [%s] with IP [%s]",
 					nsConn, msg.Namespace,
-					ctx.RemoteAddr())
+					ctx.Values().GetString("client_ip"))
 				return nil
 			},
 			websocket.OnNamespaceDisconnect: func(nsConn *websocket.NSConn, msg websocket.Message) error {
