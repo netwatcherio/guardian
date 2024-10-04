@@ -77,11 +77,11 @@ func getWebsocketEvents(r *Router) websocket.Namespaces {
 		"agent": websocket.Events{
 			websocket.OnNamespaceConnected: func(nsConn *websocket.NSConn, msg websocket.Message) error {
 				// with `websocket.GetContext` you can retrieve the Iris' `Context`.
-				ctx := websocket.GetContext(nsConn.Conn)
+				//ctx := websocket.GetContext(nsConn.Conn)
 
-				log.Infof("[%s] connected to namespace [%s] with IP [%s]",
-					nsConn, msg.Namespace,
-					ctx.Values().GetString("client_ip"))
+				log.Infof("[%s] connected to namespace [%s]", /* with IP [%s]""*/
+					nsConn, msg.Namespace, /*,
+					ctx.Values().GetString("client_ip")*/)
 				return nil
 			},
 			websocket.OnNamespaceDisconnect: func(nsConn *websocket.NSConn, msg websocket.Message) error {
