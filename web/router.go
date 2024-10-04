@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 	"nw-guardian/internal/agent"
-	"strings"
 )
 
 type Router struct {
@@ -111,19 +110,4 @@ func (r *Router) Listen(host string) {
 		log.Error(err)
 		return
 	}
-}
-
-func ProxyIPMiddleware(ctx iris.Context) {
-	ip := ctx.RemoteAddr()
-	if forwardedFor := ctx.GetHeader("X-Forwarded-For"); forwardedFor != "" {
-		ips := strings.Split(forwardedFor, ",")
-		if len(ips) > 0 {
-			ip = strings.TrimSpace(ips[0])
-		}
-	} else if realIP := ctx.GetHeader("X-Real-IP"); realIP != "" {
-		ip = realIP
-	}
-
-	ctx.Values().Set("client_ip", ip)
-	ctx.Next()
 }
