@@ -19,6 +19,7 @@ type Session struct {
 	IsAgent   bool               `json:"is_agent" bson:"is_agent"`
 	SessionID primitive.ObjectID `json:"session_id" bson:"_id"`
 	Expiry    time.Time          `json:"expiry" bson:"expiry"`
+	Created   time.Time          `json:"created" bson:"created"`
 	WSConn    string             `json:"ws_conn" bson:"ws_conn"`
 	IP        string             `json:"ip,omitempty" bson:"ip"`
 }
@@ -29,6 +30,7 @@ func (s *Session) Create(db *mongo.Database) error {
 
 	s.SessionID = primitive.NewObjectID()
 	s.Expiry = time.Now().Add(time.Hour * 24)
+	s.Created = time.Now()
 
 	if (s.ID == primitive.ObjectID{}) {
 		ee.Message = "invalid id used to create session"
