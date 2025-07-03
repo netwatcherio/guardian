@@ -55,6 +55,12 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 		return ee.ToError()
 	}
 
+	if len(pp2) < 1 {
+		log.Printf("pp: %v", pp)
+		log.Printf("pp2: %v", pp2)
+		return errors.New("no matching probe found")
+	}
+
 	a := Agent{ID: pp2[0].Agent}
 	err = a.UpdateTimestamp(db)
 	if err != nil {
