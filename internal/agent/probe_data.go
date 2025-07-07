@@ -13,14 +13,26 @@ import (
 	"time"
 )
 
+/*
+
+storing the agent probe types will be more complicated
+
+
+
+*/
+
 type ProbeData struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id"`
 	ProbeID   primitive.ObjectID `json:"probe" bson:"probe"`
 	Triggered bool               `json:"triggered" bson:"triggered"`
 	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
-	Target    ProbeTarget        `bson:"target" json:"target"`
-	Data      interface{}        `json:"data,omitempty" bson:"data,omitempty"`
+	/*
+		when we are storing agent probe data we will use the agent as the one reporting,
+		and the target will be the targeted agent / host
+	*/
+	Target ProbeTarget `bson:"target" json:"target"`
+	Data   interface{} `json:"data,omitempty" bson:"data,omitempty"`
 }
 
 func DeleteProbeDataByProbeID(db *mongo.Database, probeID primitive.ObjectID) error {
