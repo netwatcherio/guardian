@@ -511,6 +511,7 @@ func (p *Probe) createStandardFakeProbe(originalProbe *Probe, probeType ProbeTyp
 
 	// Set the target IP address
 	fakeProbe.Config.Target[0].Target = publicIP
+	fakeProbe.ID = originalProbe.ID
 
 	// Preserve the original agent ID for tracking
 	fakeProbe.Config.Target[0].Agent = target.Agent
@@ -747,36 +748,75 @@ func (probe *Probe) UpdateFirstProbeTarget(db *mongo.Database, targetStatus stri
 	return nil
 }
 
+// FindTrafficSimClients // todo add it so it calculates the same for agent probe type.
 func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID) ([]*Probe, error) {
 	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindTrafficSimClients", ObjectID: serverAgentID}
 
-	// we shouldn't need to search based on all the sites / reduce them because we trust the backend / no one will
-	// abuse the functionality of adding a traffic sim server to a site that it doesn't belong to / link to agent?
+	var clientProbes []*Probe
 
-	// Assuming `serverAgentID` is the ID of the agent with the TRAFFICSIM server probe.
-
-	// Step 1: Define the filter to find non-server TRAFFICSIM probes targeting this server agent.
-	filter := bson.D{
+	// Step 1: Find direct TRAFFICSIM client probes (existing logic)
+	filter1 := bson.D{
 		{"type", ProbeType_TRAFFICSIM},         // Filter for TRAFFICSIM type probes.
 		{"config.server", false},               // Ensure these are not servers.
 		{"config.target.agent", serverAgentID}, // Target must be the server agent.
 	}
 
-	// Step 2: Query the probes collection based on the defined filter.
-	var clientProbes []*Probe
-	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
+	cursor1, err := db.Collection("probes").Find(context.TODO(), filter1)
 	if err != nil {
 		ee.Error = err
-		ee.Message = "unable to get traffic sim clients 1"
-		return nil, ee.ToError()
-	}
-	if err := cursor.All(context.TODO(), &clientProbes); err != nil {
-		ee.Error = err
-		ee.Message = "unable to get traffic sim clients 2"
+		ee.Message = "unable to get direct traffic sim clients"
 		return nil, ee.ToError()
 	}
 
-	// `clientProbes` now contains all TRAFFICSIM client probes targeting the given server agent.
+	var directTrafficSimClients []*Probe
+	if err := cursor1.All(context.TODO(), &directTrafficSimClients); err != nil {
+		ee.Error = err
+		ee.Message = "unable to decode direct traffic sim clients"
+		return nil, ee.ToError()
+	}
+
+	clientProbes = append(clientProbes, directTrafficSimClients...)
+
+	// Step 2: Find AGENT probes that target the server agent
+	filter2 := bson.D{
+		{"type", ProbeType_AGENT},
+		{"config.target.agent", serverAgentID}, // AGENT probes that target the server agent
+	}
+
+	cursor2, err := db.Collection("probes").Find(context.TODO(), filter2)
+	if err != nil {
+		ee.Error = err
+		ee.Message = "unable to get agent probes targeting server"
+		return nil, ee.ToError()
+	}
+
+	var agentProbes []*Probe
+	if err := cursor2.All(context.TODO(), &agentProbes); err != nil {
+		ee.Error = err
+		ee.Message = "unable to decode agent probes"
+		return nil, ee.ToError()
+	}
+
+	// Step 3: For each AGENT probe, check if the agent supports traffic sim
+	for _, agentProbe := range agentProbes {
+		// Get the agent information
+		agent := Agent{ID: agentProbe.Agent}
+		if err := agent.Get(db); err != nil {
+			log.WithFields(log.Fields{
+				"agentID": agentProbe.Agent.Hex(),
+				"error":   err,
+			}).Error("Failed to get agent information for traffic sim client check")
+			continue
+		}
+
+		// Create a probe instance to access the isTrafficSimSupported method
+		p := &Probe{}
+		if p.isTrafficSimSupported(agent, db) {
+			// This agent supports traffic sim, so add it as a potential client
+			clientProbes = append(clientProbes, agentProbe)
+		}
+	}
+
 	return clientProbes, nil
 }
 
