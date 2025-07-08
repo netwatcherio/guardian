@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"nw-guardian/internal"
+	"strings"
 	"time"
 )
 
@@ -121,172 +123,80 @@ func (pd *ProbeData) Create(db *mongo.Database) error {
 func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.WarnLevel, Function: "probe_data.parse", ObjectID: pd.ProbeID}
 
-	// todo get ProbeType from ProbeID??
 	pp := Probe{ID: pd.ProbeID}
-	probe, err := pp.Get(db)
-	if err != nil {
-		ee.Message = "unable to get probes from id"
+	probes, err := pp.Get(db)
+	if err != nil || len(probes) == 0 {
+		ee.Message = "unable to get probe from id or no probes found"
 		ee.Error = err
 		return nil, ee.ToError()
 	}
 
-	if len(probe) == 0 {
-		ee.Message = "no probes found"
+	probe := probes[0]
+	probeType := probe.Type
+
+	// If it's an AGENT type, try parsing actual type from ProbeTarget
+	if probeType == ProbeType_AGENT {
+		parts := strings.Split(pd.Target.Target, "%%%")
+		if len(parts) >= 1 {
+			probeType = ProbeType(parts[0])
+		}
+	}
+
+	jsonData, err := json.Marshal(pd.Data)
+	if err != nil {
+		ee.Message = "cannot marshal"
+		ee.Error = err
 		return nil, ee.ToError()
 	}
 
-	switch probe[0].Type { // todo
+	switch probeType {
 	case ProbeType_TRAFFICSIM:
-		// First, marshal the interface{} back to JSON
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
+		var stats TrafficSimClientStats
+		err = json.Unmarshal(jsonData, &stats)
+		return stats, err
 
-		// Now you can unmarshal the JSON into your struct
-		var trafficSimClientStats TrafficSimClientStats
-		err = json.Unmarshal(jsonData, &trafficSimClientStats)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-
-		// Return the successfully unmarshaled data
-		return trafficSimClientStats, nil
 	case ProbeType_RPERF:
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
+		var rperf RPerfResults
+		err = json.Unmarshal(jsonData, &rperf)
+		return rperf, err
 
-		var rperfData RPerfResults // Replace with the actual struct for RPERF data
-		err = json.Unmarshal(jsonData, &rperfData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-		return rperfData, err
 	case ProbeType_MTR:
-		// First, marshal the interface{} back to JSON
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
+		var mtr MtrResult
+		err = json.Unmarshal(jsonData, &mtr)
+		return mtr, err
 
-		// Now you can unmarshal the JSON into your struct
-		var mtrData MtrResult
-		err = json.Unmarshal(jsonData, &mtrData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-
-		// Return the successfully unmarshaled data
-		return mtrData, nil
 	case ProbeType_NETWORKINFO:
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
+		var netinfo NetResult
+		err = json.Unmarshal(jsonData, &netinfo)
+		return netinfo, err
 
-		var mtrData NetResult // Replace with the actual struct for MTR data
-		err = json.Unmarshal(jsonData, &mtrData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-		return mtrData, err
 	case ProbeType_PING:
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
+		var ping PingResult
+		err = json.Unmarshal(jsonData, &ping)
+		return ping, err
 
-		var mtrData PingResult // Replace with the actual struct for MTR data
-		err = json.Unmarshal(jsonData, &mtrData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-		return mtrData, err
 	case ProbeType_SPEEDTEST:
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
+		var result SpeedTestResult
+		err = json.Unmarshal(jsonData, &result)
+		if err == nil {
+			_ = pp.UpdateFirstProbeTarget(db, "ok")
 		}
+		return result, err
 
-		var mtrData SpeedTestResult // Replace with the actual struct for MTR data
-		err = json.Unmarshal(jsonData, &mtrData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-
-		err = pp.UpdateFirstProbeTarget(db, "ok")
-		if err != nil {
-			ee.Message = "error updating probe target"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-
-		return mtrData, err
 	case ProbeType_SPEEDTEST_SERVERS:
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
+		var servers []SpeedTestServer
+		err = json.Unmarshal(jsonData, &servers)
+		return servers, err
 
-		var mtrData []SpeedTestServer // Replace with the actual struct for MTR data
-		err = json.Unmarshal(jsonData, &mtrData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-		return mtrData, err
-	// Add cases for other probe types
 	case ProbeType_SYSTEMINFO:
-		jsonData, err := json.Marshal(pd.Data)
-		if err != nil {
-			ee.Message = "cannot marshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-
-		var mtrData CompleteSystemInfo // Replace with the actual struct for MTR data
-		err = json.Unmarshal(jsonData, &mtrData)
-		if err != nil {
-			ee.Message = "cannot unmarshal"
-			ee.Error = err
-			return nil, ee.ToError()
-		}
-		return mtrData, err
+		var sysinfo CompleteSystemInfo
+		err = json.Unmarshal(jsonData, &sysinfo)
+		return sysinfo, err
 
 	default:
-		// todo Handle unsupported probe types or return an error
+		ee.Message = fmt.Sprintf("unsupported probe type: %s", probeType)
+		return nil, ee.ToError()
 	}
-
-	return nil, nil
 }
 
 // GetData requires a checkrequest to be sent, if agent id is set,
