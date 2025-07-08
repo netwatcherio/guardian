@@ -369,19 +369,20 @@ func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 
 	var agentProbes []*Probe
 	for _, result := range results {
-		probe, err := probe.unmarshalProbeResult(result, db, ee)
+		pp, err := probe.unmarshalProbeResult(result, db, ee)
 		if err != nil {
-			log.Error(err)
-			continue
+			ee.Error = err
 		}
-		agentProbes = append(agentProbes, probe)
+		for _, pp2 := range pp {
+			agentProbes = append(agentProbes, pp2)
+		}
 	}
 
 	return agentProbes, nil
 }
 
 // unmarshalProbeResult handles the unmarshaling and target resolution for a single probe result
-func (p *Probe) unmarshalProbeResult(result bson.D, db *mongo.Database, ee internal.ErrorFormat) (*Probe, error) {
+func (p *Probe) unmarshalProbeResult(result bson.D, db *mongo.Database, ee internal.ErrorFormat) ([]*Probe, error) {
 	// Marshal and unmarshal to convert bson.D to Probe struct
 	marshaledData, err := bson.Marshal(&result)
 	if err != nil {
@@ -397,19 +398,30 @@ func (p *Probe) unmarshalProbeResult(result bson.D, db *mongo.Database, ee inter
 		return nil, ee.ToError()
 	}
 
+	var ppp []*Probe
+
+	ppp = append(ppp, &probe)
+
 	// Process probe based on its configuration and type
-	if err := p.processProbeTargets(&probe, db); err != nil {
+	pp, err := p.processProbeTargets(&probe, db)
+	if err != nil {
 		return nil, err
 	}
 
-	return &probe, nil
+	if pp != nil {
+		for _, ppp2 := range pp {
+			ppp = append(ppp, ppp2)
+		}
+	}
+
+	return ppp, nil
 }
 
 // processProbeTargets handles target resolution for different probe types
-func (p *Probe) processProbeTargets(probe *Probe, db *mongo.Database) error {
+func (p *Probe) processProbeTargets(probe *Probe, db *mongo.Database) ([]*Probe, error) {
 	// Handle traffic simulation server probes
 	if probe.Config.Server && probe.Type == ProbeType_TRAFFICSIM {
-		return p.processTrafficSimServer(probe, db)
+		return nil, p.processTrafficSimServer(probe, db)
 	}
 
 	// Handle probes with targets (excluding traffic sim servers)
@@ -417,7 +429,7 @@ func (p *Probe) processProbeTargets(probe *Probe, db *mongo.Database) error {
 		return p.processProbeWithTargets(probe, db)
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (probe *Probe) copyProbe(probeType ProbeType, target ProbeTarget) (*Probe, error) {
@@ -432,7 +444,7 @@ func (probe *Probe) copyProbe(probeType ProbeType, target ProbeTarget) (*Probe, 
 // These fake types will return the same format of probes, except the "Target" in the TargetGroups will be IP,
 // and Agent will still be the original agent. The returned probedata by agent will replace the Target to contain
 // the type of test along with the destination IP. The group in the probedata when returned will be the reporting agent for end to end analysis.
-func (p *Probe) generateFakeProbesForAgent(probe *Probe, db *mongo.Database) error {
+func (p *Probe) generateFakeProbesForAgent(probe *Probe, db *mongo.Database) ([]*Probe, error) {
 	var generatedProbes []*Probe
 
 	for _, target := range probe.Config.Target {
@@ -475,7 +487,7 @@ func (p *Probe) generateFakeProbesForAgent(probe *Probe, db *mongo.Database) err
 	// This could be stored in memory, cache, or temporary collection
 	// For now, we'll assume they're handled elsewhere in the pipeline
 
-	return nil
+	return generatedProbes, nil
 }
 
 // createFakeProbe creates a specific type of fake probe for an agent target
@@ -575,7 +587,7 @@ func (p *Probe) processTrafficSimServer(probe *Probe, db *mongo.Database) error 
 }
 
 // processProbeWithTargets handles probes that have target configurations
-func (p *Probe) processProbeWithTargets(probe *Probe, db *mongo.Database) error {
+func (p *Probe) processProbeWithTargets(probe *Probe, db *mongo.Database) ([]*Probe, error) {
 	// Handle agent-type probes
 	if probe.Type == ProbeType_AGENT {
 		return p.generateFakeProbesForAgent(probe, db)
@@ -583,10 +595,12 @@ func (p *Probe) processProbeWithTargets(probe *Probe, db *mongo.Database) error 
 
 	// Handle probes targeting other agents
 	if probe.Config.Target[0].Agent != (primitive.ObjectID{}) {
-		return p.resolveAgentTarget(probe, db)
+		// p.resolveAgentTarget(probe, db)
+		err := p.resolveAgentTarget(probe, db)
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // resolveAgentTarget resolves the target IP address for agent-targeted probes
