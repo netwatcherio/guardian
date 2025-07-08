@@ -809,12 +809,14 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 			continue
 		}
 
+		clientProbes = append(clientProbes, agentProbe)
+
 		// Create a probe instance to access the isTrafficSimSupported method
-		p := &Probe{}
+		/*p := &Probe{}
 		if p.isTrafficSimSupported(agent, db) {
 			// This agent supports traffic sim, so add it as a potential client
 			clientProbes = append(clientProbes, agentProbe)
-		}
+		}*/
 	}
 
 	return clientProbes, nil
