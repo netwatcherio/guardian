@@ -394,6 +394,98 @@ func addRouteProbes(r *Router) []*Route {
 		Type: "DELETE",
 	})
 	tempRoutes = append(tempRoutes, &Route{
+		Name: "Get Probe Agent Data",
+		Path: "/probes/data/{probe}",
+		JWT:  true,
+		Func: func(ctx iris.Context) error {
+			ctx.ContentType("application/json")
+
+			t := GetClaims(ctx)
+			_, err := t.FromID(r.DB)
+			if err != nil {
+				ctx.StatusCode(http.StatusInternalServerError)
+				return nil
+			}
+
+			params := ctx.Params()
+
+			cId, err := primitive.ObjectIDFromHex(params.Get("probe"))
+			if err != nil {
+				return ctx.JSON(err)
+			}
+
+			probe := agent.Probe{ID: cId}
+
+			pp, err := probe.Get(r.DB)
+			if err != nil || len(pp) == 0 {
+				return ctx.JSON(map[string]string{"error": "probe not found"})
+			}
+
+			pp[0].Agent = primitive.ObjectID{0}
+
+			// Read raw body for logging (keeping your debug code)
+			rawBody, _ := ioutil.ReadAll(ctx.Request().Body)
+			log.Info("Raw request body: ", string(rawBody))
+
+			// Recreate the body for ReadJSON
+			ctx.Request().Body = ioutil.NopCloser(bytes.NewBuffer(rawBody))
+
+			req := agent.ProbeDataRequest{}
+			err = ctx.ReadJSON(&req)
+			if err != nil {
+				log.Errorf("Error reading JSON: %s", err)
+				return err
+			}
+
+			// NEW: Check if this is an AGENT probe or if grouping is requested
+			if pp[0].Type == "AGENT" || ctx.URLParam("grouped") == "true" {
+				// Check format parameter
+				format := ctx.URLParam("format")
+
+				switch format {
+				case "flat":
+					// Return flat array format
+					data, err := pp[0].GetAgentProbeDataFlat(&req, r.DB)
+					if err != nil {
+						return err
+					}
+					return ctx.JSON(data)
+
+				case "simple":
+					// Return simple map format (type -> data)
+					data, err := pp[0].GetAgentProbeData(&req, r.DB)
+					if err != nil {
+						return err
+					}
+					return ctx.JSON(data)
+
+				default:
+					// Return full grouped format (default for AGENT probes)
+					data, err := pp[0].GetAgentProbeDataGrouped(&req, r.DB)
+					if err != nil {
+						return err
+					}
+					return ctx.JSON(data)
+				}
+			}
+
+			// Original behavior for non-AGENT probes
+			get, err := pp[0].GetData(&req, r.DB)
+			if err != nil {
+				return err
+			}
+
+			err = ctx.JSON(get)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+
+		Type: RouteType_POST,
+	})
+	/*tempRoutes = append(tempRoutes, &Route{
 		Name: "Get Probe Data",
 		Path: "/probes/data/{probe}",
 		JWT:  true,
@@ -450,7 +542,7 @@ func addRouteProbes(r *Router) []*Route {
 		},
 
 		Type: RouteType_POST,
-	})
+	})*/
 	tempRoutes = append(tempRoutes, &Route{
 		Name: "Update First Probe Target",
 		Path: "/probe/first_target_update/{probeid}", // fuck i think im braindead

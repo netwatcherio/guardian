@@ -199,6 +199,367 @@ func (pd *ProbeData) parse(db *mongo.Database) (interface{}, error) {
 	}
 }
 
+// GroupedProbeData represents probe data grouped by reporting agent, target agent, and type
+type GroupedProbeData struct {
+	ReportingAgent primitive.ObjectID `json:"reportingAgent"`
+	TargetAgent    primitive.ObjectID `json:"targetAgent"`
+	ProbeType      string             `json:"probeType"`
+	Data           []ProbeData        `json:"data"`
+}
+
+// AgentGroupedData represents all data grouped by agents and types
+type AgentGroupedData struct {
+	// Map structure: ReportingAgent -> TargetAgent -> ProbeType -> []ProbeData
+	Groups map[string]map[string]map[string][]ProbeData `json:"groups"`
+
+	// Available agents from the probe configuration
+	AvailableTargets []ProbeTarget `json:"availableTargets"`
+
+	// Summary information
+	Summary GroupingSummary `json:"summary"`
+}
+
+// GroupingSummary provides summary statistics
+type GroupingSummary struct {
+	TotalDataPoints int                  `json:"totalDataPoints"`
+	ReportingAgents []primitive.ObjectID `json:"reportingAgents"`
+	TargetAgents    []primitive.ObjectID `json:"targetAgents"`
+	ProbeTypes      []string             `json:"probeTypes"`
+	DataCountByType map[string]int       `json:"dataCountByType"`
+}
+
+// GetAgentProbeDataGrouped retrieves and groups probe data by reporting agent, target agent, and type
+func (probe *Probe) GetAgentProbeDataGrouped(req *ProbeDataRequest, db *mongo.Database) (*AgentGroupedData, error) {
+	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe_data.GetAgentProbeDataGrouped"}
+
+	// First, get the probe configuration to extract available targets
+	probeConfig, err := probe.Get(db)
+	if err != nil || len(probeConfig) == 0 {
+		ee.Error = errors.New("could not find probe configuration")
+		return nil, ee.ToError()
+	}
+
+	availableTargets := probeConfig[0].Config.Target
+
+	// Build base filter
+	filter := bson.M{
+		"probe": probe.ID,
+	}
+
+	// Add agent filter if specified
+	if probe.Agent != primitive.NilObjectID {
+		filter["agent"] = probe.Agent
+	}
+
+	// For time filtering, we'll need to handle different timestamp fields
+	// We'll use a general approach and let MongoDB handle non-existent fields
+	if !req.Recent {
+		timeFilter := bson.M{
+			"$or": []bson.M{
+				{"data.stop_timestamp": bson.M{"$gt": req.StartTimestamp, "$lt": req.EndTimestamp}},
+				{"data.timestamp": bson.M{"$gt": req.StartTimestamp, "$lt": req.EndTimestamp}},
+				{"data.reportTime": bson.M{"$gt": req.StartTimestamp, "$lt": req.EndTimestamp}},
+			},
+		}
+		filter["$and"] = []bson.M{timeFilter}
+	}
+
+	// Set query options - we'll sort by _id descending as a general approach
+	opts := options.Find().
+		SetLimit(req.Limit).
+		SetSort(bson.D{{"_id", -1}})
+
+	// Execute query
+	cursor, err := db.Collection("probe_data").Find(context.TODO(), filter, opts)
+	if err != nil {
+		ee.Message = "cannot find probe data"
+		ee.Error = err
+		return nil, ee.ToError()
+	}
+	defer cursor.Close(context.TODO())
+
+	// Initialize the result structure
+	result := &AgentGroupedData{
+		Groups:           make(map[string]map[string]map[string][]ProbeData),
+		AvailableTargets: availableTargets,
+		Summary: GroupingSummary{
+			DataCountByType: make(map[string]int),
+			ReportingAgents: []primitive.ObjectID{},
+			TargetAgents:    []primitive.ObjectID{},
+			ProbeTypes:      []string{},
+		},
+	}
+
+	// Maps to track unique agents and types
+	reportingAgentsMap := make(map[string]primitive.ObjectID)
+	targetAgentsMap := make(map[string]primitive.ObjectID)
+	probeTypesMap := make(map[string]bool)
+
+	// Process results
+	var probeDataList []ProbeData
+	if err := cursor.All(context.TODO(), &probeDataList); err != nil {
+		ee.Message = "error decoding probe data"
+		ee.Error = err
+		return nil, ee.ToError()
+	}
+
+	// Group the data
+	for _, data := range probeDataList {
+		// Extract reporting agent (group) and target agent
+		reportingAgentID := data.Target.Group // The agent sending the data
+		targetAgentID := data.Target.Agent    // The agent being monitored
+
+		// Skip if no valid agents
+		if reportingAgentID == primitive.NilObjectID || targetAgentID == primitive.NilObjectID {
+			continue
+		}
+
+		// Extract probe type from target string
+		probeType := extractProbeType(data.Target.Target)
+		if probeType == "" {
+			log.Warnf("Could not extract probe type from target: %s", data.Target.Target)
+			continue
+		}
+
+		reportingKey := reportingAgentID.Hex()
+		targetKey := targetAgentID.Hex()
+
+		// Track unique agents and types
+		reportingAgentsMap[reportingKey] = reportingAgentID
+		targetAgentsMap[targetKey] = targetAgentID
+		probeTypesMap[probeType] = true
+
+		// Initialize nested maps if needed
+		if _, exists := result.Groups[reportingKey]; !exists {
+			result.Groups[reportingKey] = make(map[string]map[string][]ProbeData)
+		}
+		if _, exists := result.Groups[reportingKey][targetKey]; !exists {
+			result.Groups[reportingKey][targetKey] = make(map[string][]ProbeData)
+		}
+
+		// Append data to the appropriate group
+		result.Groups[reportingKey][targetKey][probeType] = append(
+			result.Groups[reportingKey][targetKey][probeType],
+			data,
+		)
+
+		// Update counters
+		result.Summary.TotalDataPoints++
+		result.Summary.DataCountByType[probeType]++
+	}
+
+	// Convert maps to slices for summary
+	for _, agent := range reportingAgentsMap {
+		result.Summary.ReportingAgents = append(result.Summary.ReportingAgents, agent)
+	}
+	for _, agent := range targetAgentsMap {
+		result.Summary.TargetAgents = append(result.Summary.TargetAgents, agent)
+	}
+	for probeType := range probeTypesMap {
+		result.Summary.ProbeTypes = append(result.Summary.ProbeTypes, probeType)
+	}
+
+	if result.Summary.TotalDataPoints == 0 {
+		ee.Error = errors.New("no data found for this probe")
+		return nil, ee.ToError()
+	}
+
+	return result, nil
+}
+
+// extractProbeType extracts the probe type from the target string
+// Format: "PROBETYPE%%%actual_target" (e.g., "TRAFFICSIM%%%216.138.253.125:8677")
+func extractProbeType(targetString string) string {
+	parts := strings.Split(targetString, "%%%")
+	if len(parts) >= 2 {
+		return parts[0]
+	}
+	// If no separator found, try to infer from the format
+	if strings.Contains(targetString, ":") && strings.Count(targetString, ".") == 3 {
+		// Likely an IP:port format, could be TRAFFICSIM
+		return "TRAFFICSIM"
+	}
+	return ""
+}
+
+// GetAgentProbeDataFlat returns a flattened view of grouped data
+func (probe *Probe) GetAgentProbeDataFlat(req *ProbeDataRequest, db *mongo.Database) ([]GroupedProbeData, error) {
+	// Get the grouped data first
+	groupedData, err := probe.GetAgentProbeDataGrouped(req, db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Flatten the nested structure
+	var flatData []GroupedProbeData
+
+	for reportingAgentHex, targetMap := range groupedData.Groups {
+		reportingAgent, _ := primitive.ObjectIDFromHex(reportingAgentHex)
+
+		for targetAgentHex, typeMap := range targetMap {
+			targetAgent, _ := primitive.ObjectIDFromHex(targetAgentHex)
+
+			for probeType, dataList := range typeMap {
+				flatData = append(flatData, GroupedProbeData{
+					ReportingAgent: reportingAgent,
+					TargetAgent:    targetAgent,
+					ProbeType:      probeType,
+					Data:           dataList,
+				})
+			}
+		}
+	}
+
+	return flatData, nil
+}
+
+// Helper function to get timestamp field based on probe type
+func getTimestampField(probeType string) string {
+	switch probeType {
+	case "NETWORKINFO", "NETINFO", "SPEEDTEST", "SYSTEMINFO", "SYSINFO":
+		return "data.timestamp"
+	case "TRAFFICSIM":
+		return "data.reportTime"
+	default:
+		return "data.stop_timestamp"
+	}
+}
+
+// GetProbeTargetPairs extracts all unique reporting-target agent pairs from probe data
+func GetProbeTargetPairs(probeID primitive.ObjectID, db *mongo.Database) ([]AgentPair, error) {
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"probe": probeID,
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id": bson.M{
+					"reporting": "$target.group",
+					"target":    "$target.agent",
+				},
+			},
+		},
+		{
+			"$project": bson.M{
+				"_id":       0,
+				"reporting": "$_id.reporting",
+				"target":    "$_id.target",
+			},
+		},
+	}
+
+	cursor, err := db.Collection("probe_data").Aggregate(context.TODO(), pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	var pairs []AgentPair
+	if err := cursor.All(context.TODO(), &pairs); err != nil {
+		return nil, err
+	}
+
+	return pairs, nil
+}
+
+// GetProbeTypesFromData extracts all unique probe types from probe data
+func GetProbeTypesFromData(probeID primitive.ObjectID, db *mongo.Database) ([]string, error) {
+	// First get sample documents to extract probe types
+	filter := bson.M{"probe": probeID}
+	opts := options.Find().SetLimit(100) // Sample size
+
+	cursor, err := db.Collection("probe_data").Find(context.TODO(), filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	probeTypesMap := make(map[string]bool)
+
+	for cursor.Next(context.TODO()) {
+		var data ProbeData
+		if err := cursor.Decode(&data); err != nil {
+			continue
+		}
+
+		probeType := extractProbeType(data.Target.Target)
+		if probeType != "" {
+			probeTypesMap[probeType] = true
+		}
+	}
+
+	// Convert map to slice
+	probeTypes := make([]string, 0, len(probeTypesMap))
+	for pt := range probeTypesMap {
+		probeTypes = append(probeTypes, pt)
+	}
+
+	return probeTypes, nil
+}
+
+// AgentPair represents a reporting-target agent pair
+type AgentPair struct {
+	ReportingAgent primitive.ObjectID `bson:"reporting" json:"reportingAgent"`
+	TargetAgent    primitive.ObjectID `bson:"target" json:"targetAgent"`
+}
+
+// Example usage and integration with original GetData method
+func (probe *Probe) GetAgentProbeData(req *ProbeDataRequest, db *mongo.Database) (map[string][]ProbeData, error) {
+	// Get the grouped data
+	groupedData, err := probe.GetAgentProbeDataGrouped(req, db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to simple map format if needed
+	result := make(map[string][]ProbeData)
+
+	for _, targetMap := range groupedData.Groups {
+		for _, typeMap := range targetMap {
+			for probeType, dataList := range typeMap {
+				if existing, ok := result[probeType]; ok {
+					result[probeType] = append(existing, dataList...)
+				} else {
+					result[probeType] = dataList
+				}
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// Example routes:
+/*
+tempRoutes = append(tempRoutes, &Route{
+	Name: "Get Grouped Agent Probe Data",
+	Path: "/probes/data/{probe}/grouped",
+	JWT:  true,
+	Func: func(ctx iris.Context) error {
+		return GetAgentProbeDataGroupedRoute(ctx, r)
+	},
+	Type: RouteType_POST,
+})
+
+// You can also modify your existing route to use the new grouped functionality:
+tempRoutes = append(tempRoutes, &Route{
+	Name: "Get Probe Data",
+	Path: "/probes/data/{probe}",
+	JWT:  true,
+	Func: func(ctx iris.Context) error {
+		// Check if grouping is requested
+		if ctx.URLParam("grouped") == "true" {
+			return GetAgentProbeDataGroupedRoute(ctx, r)
+		}
+		// Otherwise use original handler
+		// ... original code ...
+	},
+	Type: RouteType_POST,
+})
+*/
+
 // GetData requires a checkrequest to be sent, if agent id is set,
 // it will require the type to be sent in check, otherwise
 // the check id will be used
