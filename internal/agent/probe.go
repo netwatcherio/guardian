@@ -378,7 +378,266 @@ func (probe *Probe) GetAllProbesForAgent(db *mongo.Database) ([]*Probe, error) {
 		}
 	}
 
+	// NEW: Find reverse probes - where other agents have AGENT probes targeting this agent
+	reverseProbes, err := probe.findReverseProbes(db)
+	if err != nil {
+		log.WithError(err).Error("Failed to find reverse probes")
+		// Don't fail the entire operation, just log the error
+	} else {
+		agentProbes = append(agentProbes, reverseProbes...)
+	}
+
 	return agentProbes, nil
+}
+
+// findReverseProbes finds all AGENT probes from other agents that target this agent
+// and generates reverse probe entries for bidirectional visibility
+func (p *Probe) findReverseProbes(db *mongo.Database) ([]*Probe, error) {
+	ee := internal.ErrorFormat{
+		Package:  "internal.agent",
+		Level:    log.ErrorLevel,
+		Function: "probe.findReverseProbes",
+		ObjectID: p.Agent,
+	}
+
+	// Find all AGENT probes that target this agent
+	filter := bson.D{
+		{"type", ProbeType_AGENT},
+		{"config.target.agent", p.Agent},
+		{"agent", bson.M{"$ne": p.Agent}}, // Exclude self-targeting probes
+	}
+
+	cursor, err := db.Collection("probes").Find(context.TODO(), filter)
+	if err != nil {
+		ee.Error = err
+		ee.Message = "unable to find reverse AGENT probes"
+		return nil, ee.ToError()
+	}
+
+	var sourceProbes []Probe
+	if err := cursor.All(context.TODO(), &sourceProbes); err != nil {
+		ee.Error = err
+		ee.Message = "unable to decode reverse AGENT probes"
+		return nil, ee.ToError()
+	}
+
+	var reverseProbes []*Probe
+
+	// For each AGENT probe targeting this agent, generate reverse probes
+	for _, sourceProbe := range sourceProbes {
+		generated, err := p.generateReverseProbes(&sourceProbe, db)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"sourceAgent": sourceProbe.Agent.Hex(),
+				"targetAgent": p.Agent.Hex(),
+				"error":       err,
+			}).Error("Failed to generate reverse probes")
+			continue
+		}
+		reverseProbes = append(reverseProbes, generated...)
+	}
+
+	return reverseProbes, nil
+}
+
+// generateReverseProbes creates reverse probe entries for bidirectional monitoring
+func (p *Probe) generateReverseProbes(sourceProbe *Probe, db *mongo.Database) ([]*Probe, error) {
+	var reverseProbes []*Probe
+
+	// Get information about the source agent
+	sourceAgent := Agent{ID: sourceProbe.Agent}
+	if err := sourceAgent.Get(db); err != nil {
+		return nil, fmt.Errorf("failed to get source agent: %w", err)
+	}
+
+	// Get source agent's public IP
+	sourceIP, err := p.getAgentPublicIP(sourceAgent.ID, sourceAgent, db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get source agent public IP: %w", err)
+	}
+
+	// Generate reverse probes for MTR and PING
+	probeTypes := []ProbeType{ProbeType_MTR, ProbeType_PING}
+
+	for _, probeType := range probeTypes {
+		reverseProbe, err := p.createReverseProbe(sourceProbe, probeType, sourceAgent, sourceIP)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to create reverse %s probe", probeType)
+			continue
+		}
+		if reverseProbe != nil {
+			reverseProbes = append(reverseProbes, reverseProbe)
+		}
+	}
+
+	// Handle TrafficSIM separately due to server/client complexity
+	trafficSimProbe, err := p.createReverseTrafficSimProbe(sourceProbe, sourceAgent, sourceIP, db)
+	if err != nil {
+		log.WithError(err).Error("Failed to create reverse TrafficSIM probe")
+	} else if trafficSimProbe != nil {
+		reverseProbes = append(reverseProbes, trafficSimProbe)
+	}
+
+	return reverseProbes, nil
+}
+
+// createReverseProbe creates a reverse probe for MTR and PING types
+func (p *Probe) createReverseProbe(sourceProbe *Probe, probeType ProbeType, sourceAgent Agent, sourceIP string) (*Probe, error) {
+	reverseProbe := &Probe{
+		ID:            sourceProbe.ID, // Keep original source probe ID
+		Type:          probeType,
+		Agent:         p.Agent, // This agent is the source of the reverse probe
+		CreatedAt:     sourceProbe.CreatedAt,
+		UpdatedAt:     sourceProbe.UpdatedAt,
+		Notifications: sourceProbe.Notifications,
+		Config: ProbeConfig{
+			Target: []ProbeTarget{
+				{
+					Target: sourceIP,
+					Agent:  sourceAgent.ID, // Track the original source agent
+				},
+			},
+			Duration: sourceProbe.Config.Duration,
+			Count:    sourceProbe.Config.Count,
+			Interval: sourceProbe.Config.Interval,
+			Server:   false,
+		},
+	}
+
+	// Mark this as a reverse/virtual probe with a special field
+	// This helps differentiate it from real probes in the UI
+	// You might want to add a field to the Probe struct for this
+	// For now, we'll use the same ID as the source probe to indicate relationship
+
+	return reverseProbe, nil
+}
+
+// createReverseTrafficSimProbe handles the complex case of reverse TrafficSIM probes
+func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Agent, sourceIP string, db *mongo.Database) (*Probe, error) {
+	// Check if this agent (p.Agent) has a TrafficSIM server
+	thisAgentProbes := Probe{Agent: p.Agent, Type: ProbeType_TRAFFICSIM}
+	probes, err := thisAgentProbes.GetAll(db)
+	if err != nil {
+		return nil, err
+	}
+
+	var thisAgentHasServer bool
+	var _ string
+
+	for _, probe := range probes {
+		if probe.Config.Server && probe.Type == ProbeType_TRAFFICSIM {
+			thisAgentHasServer = true
+			// Extract port from server configuration
+			parts := strings.Split(probe.Config.Target[0].Target, ":")
+			if len(parts) >= 2 {
+				_ = parts[1]
+			}
+			break
+		}
+	}
+
+	// Check if source agent has a TrafficSIM server
+	sourceAgentProbes := Probe{Agent: sourceAgent.ID, Type: ProbeType_TRAFFICSIM}
+	sourceProbes, err := sourceAgentProbes.GetAll(db)
+	if err != nil {
+		return nil, err
+	}
+
+	var sourceAgentHasServer bool
+	var sourceServerPort string
+
+	for _, probe := range sourceProbes {
+		if probe.Config.Server && probe.Type == ProbeType_TRAFFICSIM {
+			sourceAgentHasServer = true
+			parts := strings.Split(probe.Config.Target[0].Target, ":")
+			if len(parts) >= 2 {
+				sourceServerPort = parts[1]
+			}
+			break
+		}
+	}
+
+	// Determine the correct configuration based on server availability
+	// Case 1: This agent has a server, create a representation of source as client
+	if thisAgentHasServer && !sourceAgentHasServer {
+		// This case is already handled by the server's FindTrafficSimClients
+		// We don't need to create an additional reverse probe
+		return nil, nil
+	}
+
+	// Case 2: Source agent has a server, this agent should appear as a client
+	if sourceAgentHasServer && !thisAgentHasServer {
+		reverseProbe := &Probe{
+			ID:            primitive.NewObjectID(),
+			Type:          ProbeType_TRAFFICSIM,
+			Agent:         p.Agent,
+			CreatedAt:     sourceProbe.CreatedAt,
+			UpdatedAt:     sourceProbe.UpdatedAt,
+			Notifications: sourceProbe.Notifications,
+			Config: ProbeConfig{
+				Target: []ProbeTarget{
+					{
+						Target: sourceIP + ":" + sourceServerPort,
+						Agent:  sourceAgent.ID,
+					},
+				},
+				Duration: sourceProbe.Config.Duration,
+				Count:    sourceProbe.Config.Count,
+				Interval: sourceProbe.Config.Interval,
+				Server:   false, // This agent acts as a client to the source's server
+			},
+		}
+		return reverseProbe, nil
+	}
+
+	// Case 3: Both have servers - bidirectional traffic sim possible
+	if thisAgentHasServer && sourceAgentHasServer {
+		// Create a client probe pointing to the source's server
+		reverseProbe := &Probe{
+			ID:            primitive.NewObjectID(),
+			Type:          ProbeType_TRAFFICSIM,
+			Agent:         p.Agent,
+			CreatedAt:     sourceProbe.CreatedAt,
+			UpdatedAt:     sourceProbe.UpdatedAt,
+			Notifications: sourceProbe.Notifications,
+			Config: ProbeConfig{
+				Target: []ProbeTarget{
+					{
+						Target: sourceIP + ":" + sourceServerPort,
+						Agent:  sourceAgent.ID,
+					},
+				},
+				Duration: sourceProbe.Config.Duration,
+				Count:    sourceProbe.Config.Count,
+				Interval: sourceProbe.Config.Interval,
+				Server:   false,
+			},
+		}
+		return reverseProbe, nil
+	}
+
+	// Case 4: Neither has a server - no traffic sim possible
+	return nil, nil
+}
+
+// Enhanced processTrafficSimServer to handle bidirectional collection
+func (p *Probe) processTrafficSimServer(probe *Probe, db *mongo.Database) error {
+	clients, err := FindTrafficSimClients(db, probe.Agent)
+	if err != nil {
+		return err
+	}
+
+	// Add client agents as targets (preserving original binding target)
+	for _, client := range clients {
+		newTarget := ProbeTarget{Agent: client.Agent}
+		probe.Config.Target = append(probe.Config.Target, newTarget)
+	}
+
+	// NEW: For TrafficSIM servers, we should also collect metrics from incoming connections
+	// This will be handled by the agent when it reports probe data
+	// The agent should track client connections and report metrics for each
+
+	return nil
 }
 
 // unmarshalProbeResult handles the unmarshaling and target resolution for a single probe result
@@ -571,20 +830,6 @@ func (p *Probe) isTrafficSimSupported(agent Agent, db *mongo.Database) bool {
 	}
 
 	return false
-}
-func (p *Probe) processTrafficSimServer(probe *Probe, db *mongo.Database) error {
-	clients, err := FindTrafficSimClients(db, probe.Agent)
-	if err != nil {
-		return err
-	}
-
-	// Add client agents as targets (preserving original binding target)
-	for _, client := range clients {
-		newTarget := ProbeTarget{Agent: client.Agent}
-		probe.Config.Target = append(probe.Config.Target, newTarget)
-	}
-
-	return nil
 }
 
 // processProbeWithTargets handles probes that have target configurations
