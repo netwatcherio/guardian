@@ -543,7 +543,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 		return nil, err
 	}
 
-	var sourceAgentHasServer bool
+	var sourceAgentHasServer = false
 	var sourceServerPort string
 
 	for _, probe := range sourceProbes {
@@ -557,6 +557,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 		}
 	}
 
+	// todo fix this so the far end also reports it's metrics as well.
 	// Determine the correct configuration based on server availability
 	// Case 1: This agent has a server, create a representation of source as client
 	if thisAgentHasServer && !sourceAgentHasServer {
@@ -570,7 +571,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 		reverseProbe := &Probe{
 			ID:            sourceProbe.ID,
 			Type:          ProbeType_TRAFFICSIM,
-			Agent:         p.Agent,
+			Agent:         sourceAgent.ID,
 			CreatedAt:     sourceProbe.CreatedAt,
 			UpdatedAt:     sourceProbe.UpdatedAt,
 			Notifications: sourceProbe.Notifications,
@@ -596,7 +597,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 		reverseProbe := &Probe{
 			ID:            sourceProbe.ID,
 			Type:          ProbeType_TRAFFICSIM,
-			Agent:         p.Agent,
+			Agent:         sourceAgent.ID,
 			CreatedAt:     sourceProbe.CreatedAt,
 			UpdatedAt:     sourceProbe.UpdatedAt,
 			Notifications: sourceProbe.Notifications,
@@ -604,7 +605,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 				Target: []ProbeTarget{
 					{
 						Target: sourceIP + ":" + sourceServerPort,
-						Agent:  sourceAgent.ID,
+						Agent:  p.ID,
 					},
 				},
 				Duration: sourceProbe.Config.Duration,
