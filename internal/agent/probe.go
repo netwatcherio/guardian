@@ -1011,6 +1011,7 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.FindTrafficSimClients", ObjectID: serverAgentID}
 
 	var clientProbes []*Probe
+	seenProbeIDs := make(map[primitive.ObjectID]bool) // Track unique probes
 
 	// Step 1: Find direct TRAFFICSIM client probes (existing logic)
 	filter1 := bson.D{
@@ -1033,9 +1034,15 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 		return nil, ee.ToError()
 	}
 
-	clientProbes = append(clientProbes, directTrafficSimClients...)
+	// Add direct clients
+	for _, probe := range directTrafficSimClients {
+		if !seenProbeIDs[probe.ID] {
+			clientProbes = append(clientProbes, probe)
+			seenProbeIDs[probe.ID] = true
+		}
+	}
 
-	// Step 2: Find AGENT probes that target the server agent
+	// Step 2: Find ALL AGENT probes that target the server agent
 	filter2 := bson.D{
 		{"type", ProbeType_AGENT},
 		{"config.target.agent", serverAgentID}, // AGENT probes that target the server agent
@@ -1055,31 +1062,131 @@ func FindTrafficSimClients(db *mongo.Database, serverAgentID primitive.ObjectID)
 		return nil, ee.ToError()
 	}
 
-	// Step 3: For each AGENT probe, check if the agent supports traffic sim
-	for _, agentProbe := range agentProbes {
-		// Get the agent information
-		agent := Agent{ID: agentProbe.Agent}
-		if err := agent.Get(db); err != nil {
-			log.WithFields(log.Fields{
-				"agentID": agentProbe.Agent.Hex(),
-				"error":   err,
-			}).Error("Failed to get agent information for traffic sim client check")
-			continue
+	// Add all agent probes targeting this server (regardless of traffic sim support)
+	for _, probe := range agentProbes {
+		if !seenProbeIDs[probe.ID] {
+			clientProbes = append(clientProbes, probe)
+			seenProbeIDs[probe.ID] = true
+		}
+	}
+
+	// Step 3: Find "reverse" traffic sim clients
+	// These are TRAFFICSIM probes where this agent is targeting them,
+	// but they might have a server that this agent connects to
+	filter3 := bson.D{
+		{"type", ProbeType_TRAFFICSIM},
+		{"agent", serverAgentID}, // Probes owned by this server agent
+	}
+
+	cursor3, err := db.Collection("probes").Find(context.TODO(), filter3)
+	if err != nil {
+		ee.Error = err
+		ee.Message = "unable to get reverse traffic sim probes"
+		return nil, ee.ToError()
+	}
+
+	var reverseProbes []*Probe
+	if err := cursor3.All(context.TODO(), &reverseProbes); err != nil {
+		ee.Error = err
+		ee.Message = "unable to decode reverse traffic sim probes"
+		return nil, ee.ToError()
+	}
+
+	// For each probe where this agent is targeting another agent,
+	// check if the target agent has a TRAFFICSIM server
+	for _, probe := range reverseProbes {
+		for _, target := range probe.Config.Target {
+			if target.Agent != primitive.NilObjectID && target.Agent != serverAgentID {
+				// Check if the target agent has a TRAFFICSIM server
+				targetServerFilter := bson.D{
+					{"type", ProbeType_TRAFFICSIM},
+					{"agent", target.Agent},
+					{"config.server", true},
+				}
+
+				var targetServerProbe Probe
+				err := db.Collection("probes").FindOne(context.TODO(), targetServerFilter).Decode(&targetServerProbe)
+				if err == nil && !seenProbeIDs[targetServerProbe.ID] {
+					// The target has a server, so this creates a reverse client relationship
+					clientProbes = append(clientProbes, &targetServerProbe)
+					seenProbeIDs[targetServerProbe.ID] = true
+				}
+			}
+		}
+	}
+
+	// Step 4: Find AGENT probes owned by this server that target other agents
+	filter4 := bson.D{
+		{"type", ProbeType_AGENT},
+		{"agent", serverAgentID}, // AGENT probes owned by this server
+	}
+
+	cursor4, err := db.Collection("probes").Find(context.TODO(), filter4)
+	if err != nil {
+		ee.Error = err
+		ee.Message = "unable to get agent probes owned by server"
+		return nil, ee.ToError()
+	}
+
+	var ownedAgentProbes []*Probe
+	if err := cursor4.All(context.TODO(), &ownedAgentProbes); err != nil {
+		ee.Error = err
+		ee.Message = "unable to decode owned agent probes"
+		return nil, ee.ToError()
+	}
+
+	// Add all agent probes owned by this server (showing what this agent targets)
+	for _, probe := range ownedAgentProbes {
+		if !seenProbeIDs[probe.ID] {
+			clientProbes = append(clientProbes, probe)
+			seenProbeIDs[probe.ID] = true
+		}
+	}
+
+	// Step 5: Find TRAFFICSIM servers that are targeted by this agent
+	// (to complete the reverse relationship picture)
+	filter5 := bson.D{
+		{"type", ProbeType_TRAFFICSIM},
+		{"config.server", true}, // Only servers
+	}
+
+	cursor5, err := db.Collection("probes").Find(context.TODO(), filter5)
+	if err != nil {
+		ee.Error = err
+		ee.Message = "unable to get all traffic sim servers"
+		return nil, ee.ToError()
+	}
+
+	var allServers []*Probe
+	if err := cursor5.All(context.TODO(), &allServers); err != nil {
+		ee.Error = err
+		ee.Message = "unable to decode all traffic sim servers"
+		return nil, ee.ToError()
+	}
+
+	// Check if this agent has any probes targeting these servers
+	for _, serverProbe := range allServers {
+		if serverProbe.Agent == serverAgentID {
+			continue // Skip self
 		}
 
-		clientProbes = append(clientProbes, agentProbe)
+		// Check if this agent has a probe targeting this server
+		targetingFilter := bson.D{
+			{"agent", serverAgentID},
+			{"config.target.agent", serverProbe.Agent},
+		}
 
-		// Create a probe instance to access the isTrafficSimSupported method
-		/*p := &Probe{}
-		if p.isTrafficSimSupported(agent, db) {
-			// This agent supports traffic sim, so add it as a potential client
-			clientProbes = append(clientProbes, agentProbe)
-		}*/
+		var targetingProbe Probe
+		err := db.Collection("probes").FindOne(context.TODO(), targetingFilter).Decode(&targetingProbe)
+		if err == nil && !seenProbeIDs[serverProbe.ID] {
+			// This agent targets a server, include it in the client list
+			clientProbes = append(clientProbes, serverProbe)
+			seenProbeIDs[serverProbe.ID] = true
+		}
 	}
 
 	return clientProbes, nil
 }
-
 func (probe *Probe) Update(db *mongo.Database) error {
 	ee := internal.ErrorFormat{Package: "internal.agent", Level: log.ErrorLevel, Function: "probe.Update", ObjectID: probe.ID}
 
