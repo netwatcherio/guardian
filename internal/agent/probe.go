@@ -521,6 +521,18 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 		return nil, err
 	}
 
+	/*
+
+		scenario one:
+			- p.Agent is A and the requesting probe is from B
+			- The probe will have B's agent ID in the probe
+			- Currently; if both the "requesting" probe, and our CURRENT
+			server have a server, then return B's probe information, with the source probe IP
+
+
+
+	*/
+
 	var thisAgentHasServer bool
 	var _ string
 
@@ -567,7 +579,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 	}
 
 	// Case 2: Source agent has a server, this agent should appear as a client
-	if sourceAgentHasServer && !thisAgentHasServer {
+	if sourceAgentHasServer {
 		reverseProbe := &Probe{
 			ID:            sourceProbe.ID,
 			Type:          ProbeType_TRAFFICSIM,
@@ -592,7 +604,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 	}
 
 	// Case 3: Both have servers - bidirectional traffic sim possible
-	if thisAgentHasServer && sourceAgentHasServer {
+	/*if thisAgentHasServer && sourceAgentHasServer {
 		// Create a client probe pointing to the source's server
 		reverseProbe := &Probe{
 			ID:            sourceProbe.ID,
@@ -615,7 +627,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 			},
 		}
 		return reverseProbe, nil
-	}
+	}*/
 
 	// Case 4: Neither has a server - no traffic sim possible
 	return nil, nil
