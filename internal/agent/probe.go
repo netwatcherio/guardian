@@ -562,6 +562,18 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 	for _, probe := range sourceProbes {
 		if probe.Config.Server && probe.Type == ProbeType_TRAFFICSIM {
 			sourceAgentHasServer = true
+
+			if probe.Config.Target == nil {
+
+				jM, err := json.Marshal(probe)
+				if err != nil {
+					log.Error("error marshal target agent conf (%s) - %s ", err, string(jM))
+				}
+				log.Warn("Failed to get target from server - %s", string(jM))
+
+				continue
+			}
+
 			parts := strings.Split(probe.Config.Target[0].Target, ":")
 			if len(parts) >= 2 {
 				sourceServerPort = parts[1]
@@ -814,9 +826,9 @@ func (p *Probe) createTrafficSimFakeProbe(originalProbe *Probe, target ProbeTarg
 
 				jM, err := json.Marshal(agentProbe)
 				if err != nil {
-					log.Error("error marshal target agent conf (%s) - %s ", err, jM)
+					log.Error("error marshal target agent conf (%s) - %s ", err, string(jM))
 				}
-				log.Warn("Failed to get target from server - %s", jM)
+				log.Warn("11 Failed to get target from server - %s", string(jM))
 
 				continue
 			}
