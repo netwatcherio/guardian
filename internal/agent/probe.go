@@ -541,6 +541,16 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 		if probe.Config.Server && probe.Type == ProbeType_TRAFFICSIM {
 			thisAgentHasServer = true
 			// Extract port from server configuration
+			if probe.Config.Target == nil {
+
+				jM, err := json.Marshal(probe)
+				if err != nil {
+					log.Error("error marshal target agent conf (%s) - %s ", err, string(jM))
+				}
+				log.Warn("12 Failed to get target from server - %s", string(jM))
+
+				continue
+			}
 			parts := strings.Split(probe.Config.Target[0].Target, ":")
 			if len(parts) >= 2 {
 				_ = parts[1]
