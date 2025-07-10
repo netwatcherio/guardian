@@ -568,7 +568,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 	// Case 2: Source agent has a server, this agent should appear as a client
 	if sourceAgentHasServer && !thisAgentHasServer {
 		reverseProbe := &Probe{
-			ID:            primitive.NewObjectID(),
+			ID:            sourceProbe.ID,
 			Type:          ProbeType_TRAFFICSIM,
 			Agent:         p.Agent,
 			CreatedAt:     sourceProbe.CreatedAt,
@@ -594,7 +594,7 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 	if thisAgentHasServer && sourceAgentHasServer {
 		// Create a client probe pointing to the source's server
 		reverseProbe := &Probe{
-			ID:            primitive.NewObjectID(),
+			ID:            sourceProbe.ID,
 			Type:          ProbeType_TRAFFICSIM,
 			Agent:         p.Agent,
 			CreatedAt:     sourceProbe.CreatedAt,
