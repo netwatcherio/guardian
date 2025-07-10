@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -809,6 +810,17 @@ func (p *Probe) createTrafficSimFakeProbe(originalProbe *Probe, target ProbeTarg
 	for _, agentProbe := range agentProbes {
 		if agentProbe.Config.Server && agentProbe.Type == ProbeType_TRAFFICSIM {
 			// Extract port from server target configuration
+			if agentProbe.Config.Target == nil {
+
+				jM, err := json.Marshal(agentProbe)
+				if err != nil {
+					log.Error("error marshal target agent conf (%s) - %s ", err, jM)
+				}
+				log.Warn("Failed to get target from server - %s", jM)
+
+				continue
+			}
+
 			targetParts := strings.Split(agentProbe.Config.Target[0].Target, ":")
 			if len(targetParts) < 2 {
 				continue // Skip invalid configurations
