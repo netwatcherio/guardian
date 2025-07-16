@@ -924,8 +924,8 @@ type HostMemoryInfo struct {
 }*/
 
 type TrafficSimClientStats struct {
-	AverageRTT       float64 `json:"averageRTT"`
-	DuplicatePackets int     `json:"duplicatePackets"`
+	AverageRTT       float64 `json:"averageRTT" bson:"averageRTT"`
+	DuplicatePackets int     `json:"duplicatePackets" bson:"duplicatePackets"`
 	Flows            map[string]struct {
 		BytesReceived int     `json:"bytesReceived"`
 		BytesSent     int     `json:"bytesSent"`
@@ -952,15 +952,15 @@ type TrafficSimClientStats struct {
 		} `json:"rttStats"`
 		ThroughputRecv float64 `json:"throughputRecv"`
 		ThroughputSend float64 `json:"throughputSend"`
-	} `json:"flows"`
-	LossPercentage int       `json:"lossPercentage"`
-	LostPackets    int       `json:"lostPackets"`
-	MaxRTT         int       `json:"maxRTT"`
-	MinRTT         int       `json:"minRTT"`
-	OutOfSequence  int       `json:"outOfSequence"`
-	ReportTime     time.Time `json:"reportTime"`
-	StdDevRTT      float64   `json:"stdDevRTT"`
-	TotalPackets   int       `json:"totalPackets"`
+	} `json:"flows" bson:"flows"`
+	LossPercentage int       `json:"lossPercentage" bson:"lossPercentage"`
+	LostPackets    int       `json:"lostPackets" bson:"lostPackets"`
+	MaxRTT         int       `json:"maxRTT" bson:"maxRTT"`
+	MinRTT         int       `json:"minRTT" bson:"minRTT"`
+	OutOfSequence  int       `json:"outOfSequence" bson:"outOfSequence"`
+	ReportTime     time.Time `json:"reportTime" bson:"reportTime"`
+	StdDevRTT      float64   `json:"stdDevRTT" bson:"stdDevRTT"`
+	TotalPackets   int       `json:"totalPackets" bson:"totalPackets"`
 }
 
 /*return map[string]interface{}{
