@@ -1,0 +1,726 @@
+// user_verification.go
+package users
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"gopkg.in/gomail.v2"
+)
+
+// VerificationToken represents an email verification token
+type VerificationToken struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID    primitive.ObjectID `bson:"userId" json:"userId"`
+	Token     string             `bson:"token" json:"token"`
+	Type      string             `bson:"type" json:"type"` // "email_verification" or "password_reset"
+	ExpiresAt time.Time          `bson:"expiresAt" json:"expiresAt"`
+	Used      bool               `bson:"used" json:"used"`
+	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+}
+
+// EmailJob represents a queued email job
+type EmailJob struct {
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	To           string             `bson:"to" json:"to"`
+	Subject      string             `bson:"subject" json:"subject"`
+	TemplateName string             `bson:"templateName" json:"templateName"`
+	TemplateData map[string]string  `bson:"templateData" json:"templateData"`
+	Status       string             `bson:"status" json:"status"` // "pending", "processing", "sent", "failed"
+	Attempts     int                `bson:"attempts" json:"attempts"`
+	Error        string             `bson:"error,omitempty" json:"error,omitempty"`
+	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
+	ProcessedAt  *time.Time         `bson:"processedAt,omitempty" json:"processedAt,omitempty"`
+}
+
+// EmailTemplate represents an email template
+type EmailTemplate struct {
+	Name     string `json:"name"`
+	Subject  string `json:"subject"`
+	HTMLBody string `json:"htmlBody"`
+	TextBody string `json:"textBody"`
+}
+
+// EmailService handles email sending and queuing
+type EmailService struct {
+	db           *mongo.Database
+	smtpHost     string
+	smtpPort     int
+	smtpUser     string
+	smtpPassword string
+	fromEmail    string
+	fromName     string
+	baseURL      string
+	templates    map[string]EmailTemplate
+	workers      int
+	queue        chan primitive.ObjectID
+	wg           sync.WaitGroup
+	ctx          context.Context
+	cancel       context.CancelFunc
+}
+
+// NewEmailService creates a new email service
+func NewEmailService(db *mongo.Database, config EmailConfig) *EmailService {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	service := &EmailService{
+		db:           db,
+		smtpHost:     config.SMTPHost,
+		smtpPort:     config.SMTPPort,
+		smtpUser:     config.SMTPUser,
+		smtpPassword: config.SMTPPassword,
+		fromEmail:    config.FromEmail,
+		fromName:     config.FromName,
+		baseURL:      config.BaseURL,
+		workers:      config.Workers,
+		queue:        make(chan primitive.ObjectID, 1000),
+		ctx:          ctx,
+		cancel:       cancel,
+	}
+
+	service.initializeTemplates()
+	return service
+}
+
+// EmailConfig holds email service configuration
+type EmailConfig struct {
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	FromEmail    string
+	FromName     string
+	BaseURL      string
+	Workers      int
+}
+
+// initializeTemplates sets up email templates
+func (es *EmailService) initializeTemplates() {
+	es.templates = map[string]EmailTemplate{
+		"email_verification": {
+			Name:    "email_verification",
+			Subject: "Verify your NetWatcher account",
+			HTMLBody: `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #3b82f6; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to NetWatcher!</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{.FirstName}},</p>
+            <p>Thank you for signing up for NetWatcher. To complete your registration, please verify your email address by clicking the button below:</p>
+            <div style="text-align: center;">
+                <a href="{{.VerificationLink}}" class="button">Verify Email Address</a>
+            </div>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #3b82f6;">{{.VerificationLink}}</p>
+            <p>This link will expire in 24 hours. If you didn't create an account with NetWatcher, you can safely ignore this email.</p>
+            <p>Best regards,<br>The NetWatcher Team</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 NetWatcher. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+			TextBody: `Welcome to NetWatcher!
+
+Hi {{.FirstName}},
+
+Thank you for signing up for NetWatcher. To complete your registration, please verify your email address by clicking the link below:
+
+{{.VerificationLink}}
+
+This link will expire in 24 hours. If you didn't create an account with NetWatcher, you can safely ignore this email.
+
+Best regards,
+The NetWatcher Team`,
+		},
+		"password_reset": {
+			Name:    "password_reset",
+			Subject: "Reset your NetWatcher password",
+			HTMLBody: `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #3b82f6; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Password Reset Request</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{.FirstName}},</p>
+            <p>We received a request to reset your NetWatcher password. Click the button below to create a new password:</p>
+            <div style="text-align: center;">
+                <a href="{{.ResetLink}}" class="button">Reset Password</a>
+            </div>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #3b82f6;">{{.ResetLink}}</p>
+            <p>This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+            <p>Best regards,<br>The NetWatcher Team</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 NetWatcher. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+			TextBody: `Password Reset Request
+
+Hi {{.FirstName}},
+
+We received a request to reset your NetWatcher password. Click the link below to create a new password:
+
+{{.ResetLink}}
+
+This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+
+Best regards,
+The NetWatcher Team`,
+		},
+		"welcome": {
+			Name:    "welcome",
+			Subject: "Welcome to NetWatcher - Let's get started!",
+			HTMLBody: `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #3b82f6; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .feature { margin: 20px 0; padding: 15px; background: white; border-radius: 5px; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to NetWatcher!</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{.FirstName}},</p>
+            <p>Your email has been verified and your NetWatcher account is now active! Here's how to get started:</p>
+            
+            <div class="feature">
+                <h3>1. Deploy Your First Agent</h3>
+                <p>Install monitoring agents on your network endpoints to start collecting data.</p>
+            </div>
+            
+            <div class="feature">
+                <h3>2. Configure Alerts</h3>
+                <p>Set up custom alerts to be notified when network issues occur.</p>
+            </div>
+            
+            <div class="feature">
+                <h3>3. Explore the Dashboard</h3>
+                <p>View real-time metrics and analyze your network performance.</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{.DashboardLink}}" class="button">Go to Dashboard</a>
+            </div>
+            
+            <p>If you have any questions, our support team is here to help!</p>
+            <p>Best regards,<br>The NetWatcher Team</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 NetWatcher. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+			TextBody: `Welcome to NetWatcher!
+
+Hi {{.FirstName}},
+
+Your email has been verified and your NetWatcher account is now active! Here's how to get started:
+
+1. Deploy Your First Agent
+   Install monitoring agents on your network endpoints to start collecting data.
+
+2. Configure Alerts
+   Set up custom alerts to be notified when network issues occur.
+
+3. Explore the Dashboard
+   View real-time metrics and analyze your network performance.
+
+Go to Dashboard: {{.DashboardLink}}
+
+If you have any questions, our support team is here to help!
+
+Best regards,
+The NetWatcher Team`,
+		},
+	}
+}
+
+// Start begins the email worker pool
+func (es *EmailService) Start() {
+	log.Infof("Starting email service with %d workers", es.workers)
+
+	for i := 0; i < es.workers; i++ {
+		es.wg.Add(1)
+		go es.worker(i)
+	}
+
+	// Start the job loader
+	go es.loadPendingJobs()
+}
+
+// Stop gracefully shuts down the email service
+func (es *EmailService) Stop() {
+	log.Info("Stopping email service...")
+	es.cancel()
+	close(es.queue)
+	es.wg.Wait()
+	log.Info("Email service stopped")
+}
+
+// worker processes email jobs from the queue
+func (es *EmailService) worker(id int) {
+	defer es.wg.Done()
+
+	log.Infof("Email worker %d started", id)
+
+	for {
+		select {
+		case jobID, ok := <-es.queue:
+			if !ok {
+				log.Infof("Email worker %d stopping", id)
+				return
+			}
+
+			if err := es.processJob(jobID); err != nil {
+				log.Errorf("Worker %d failed to process job %s: %v", id, jobID.Hex(), err)
+			}
+
+		case <-es.ctx.Done():
+			log.Infof("Email worker %d stopping", id)
+			return
+		}
+	}
+}
+
+// loadPendingJobs periodically loads pending email jobs
+func (es *EmailService) loadPendingJobs() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	// Load immediately on start
+	es.loadJobs()
+
+	for {
+		select {
+		case <-ticker.C:
+			es.loadJobs()
+		case <-es.ctx.Done():
+			return
+		}
+	}
+}
+
+// loadJobs loads pending jobs from database
+func (es *EmailService) loadJobs() {
+	filter := bson.M{
+		"status":   "pending",
+		"attempts": bson.M{"$lt": 3},
+	}
+
+	cursor, err := es.db.Collection("email_queue").Find(context.Background(), filter)
+	if err != nil {
+		log.Errorf("Failed to load pending email jobs: %v", err)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var jobs []EmailJob
+	if err := cursor.All(context.Background(), &jobs); err != nil {
+		log.Errorf("Failed to decode email jobs: %v", err)
+		return
+	}
+
+	for _, job := range jobs {
+		select {
+		case es.queue <- job.ID:
+		default:
+			// Queue is full, will retry next tick
+		}
+	}
+}
+
+// processJob processes a single email job
+func (es *EmailService) processJob(jobID primitive.ObjectID) error {
+	// Get the job
+	var job EmailJob
+	err := es.db.Collection("email_queue").FindOne(context.Background(), bson.M{"_id": jobID}).Decode(&job)
+	if err != nil {
+		return fmt.Errorf("failed to find job: %w", err)
+	}
+
+	// Update status to processing
+	_, err = es.db.Collection("email_queue").UpdateOne(
+		context.Background(),
+		bson.M{"_id": jobID},
+		bson.M{
+			"$set": bson.M{
+				"status":   "processing",
+				"attempts": job.Attempts + 1,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update job status: %w", err)
+	}
+
+	// Send the email
+	err = es.sendEmail(job)
+
+	now := time.Now()
+	if err != nil {
+		// Update as failed
+		_, updateErr := es.db.Collection("email_queue").UpdateOne(
+			context.Background(),
+			bson.M{"_id": jobID},
+			bson.M{
+				"$set": bson.M{
+					"status":      "failed",
+					"error":       err.Error(),
+					"processedAt": now,
+				},
+			},
+		)
+		if updateErr != nil {
+			log.Errorf("Failed to update job as failed: %v", updateErr)
+		}
+		return err
+	}
+
+	// Update as sent
+	_, err = es.db.Collection("email_queue").UpdateOne(
+		context.Background(),
+		bson.M{"_id": jobID},
+		bson.M{
+			"$set": bson.M{
+				"status":      "sent",
+				"processedAt": now,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update job as sent: %w", err)
+	}
+
+	log.Infof("Successfully sent email to %s", job.To)
+	return nil
+}
+
+// sendEmail sends an email using SMTP
+func (es *EmailService) sendEmail(job EmailJob) error {
+	template, exists := es.templates[job.TemplateName]
+	if !exists {
+		return fmt.Errorf("template %s not found", job.TemplateName)
+	}
+
+	// Process template
+	htmlBody := processTemplate(template.HTMLBody, job.TemplateData)
+	textBody := processTemplate(template.TextBody, job.TemplateData)
+	subject := processTemplate(job.Subject, job.TemplateData)
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", fmt.Sprintf("%s <%s>", es.fromName, es.fromEmail))
+	m.SetHeader("To", job.To)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/plain", textBody)
+	m.AddAlternative("text/html", htmlBody)
+
+	d := gomail.NewDialer(es.smtpHost, es.smtpPort, es.smtpUser, es.smtpPassword)
+
+	return d.DialAndSend(m)
+}
+
+// QueueVerificationEmail queues a verification email
+func (es *EmailService) QueueVerificationEmail(user *User, token string) error {
+	verificationLink := fmt.Sprintf("%s/verify-email?token=%s", es.baseURL, token)
+
+	job := EmailJob{
+		ID:           primitive.NewObjectID(),
+		To:           user.Email,
+		Subject:      "Verify your NetWatcher account",
+		TemplateName: "email_verification",
+		TemplateData: map[string]string{
+			"FirstName":        user.FirstName,
+			"VerificationLink": verificationLink,
+		},
+		Status:    "pending",
+		Attempts:  0,
+		CreatedAt: time.Now(),
+	}
+
+	_, err := es.db.Collection("email_queue").InsertOne(context.Background(), job)
+	if err != nil {
+		return fmt.Errorf("failed to queue email: %w", err)
+	}
+
+	// Try to add to queue immediately
+	select {
+	case es.queue <- job.ID:
+	default:
+		// Queue is full, will be picked up by loader
+	}
+
+	return nil
+}
+
+// QueuePasswordResetEmail queues a password reset email
+func (es *EmailService) QueuePasswordResetEmail(user *User, token string) error {
+	resetLink := fmt.Sprintf("%s/reset-password?token=%s", es.baseURL, token)
+
+	job := EmailJob{
+		ID:           primitive.NewObjectID(),
+		To:           user.Email,
+		Subject:      "Reset your NetWatcher password",
+		TemplateName: "password_reset",
+		TemplateData: map[string]string{
+			"FirstName": user.FirstName,
+			"ResetLink": resetLink,
+		},
+		Status:    "pending",
+		Attempts:  0,
+		CreatedAt: time.Now(),
+	}
+
+	_, err := es.db.Collection("email_queue").InsertOne(context.Background(), job)
+	if err != nil {
+		return fmt.Errorf("failed to queue email: %w", err)
+	}
+
+	// Try to add to queue immediately
+	select {
+	case es.queue <- job.ID:
+	default:
+		// Queue is full, will be picked up by loader
+	}
+
+	return nil
+}
+
+// QueueWelcomeEmail queues a welcome email
+func (es *EmailService) QueueWelcomeEmail(user *User) error {
+	dashboardLink := fmt.Sprintf("%s/dashboard", es.baseURL)
+
+	job := EmailJob{
+		ID:           primitive.NewObjectID(),
+		To:           user.Email,
+		Subject:      "Welcome to NetWatcher - Let's get started!",
+		TemplateName: "welcome",
+		TemplateData: map[string]string{
+			"FirstName":     user.FirstName,
+			"DashboardLink": dashboardLink,
+		},
+		Status:    "pending",
+		Attempts:  0,
+		CreatedAt: time.Now(),
+	}
+
+	_, err := es.db.Collection("email_queue").InsertOne(context.Background(), job)
+	if err != nil {
+		return fmt.Errorf("failed to queue email: %w", err)
+	}
+
+	// Try to add to queue immediately
+	select {
+	case es.queue <- job.ID:
+	default:
+		// Queue is full, will be picked up by loader
+	}
+
+	return nil
+}
+
+// User verification methods
+
+// CreateVerificationToken creates a new verification token for a user
+func CreateVerificationToken(db *mongo.Database, userID primitive.ObjectID, tokenType string) (*VerificationToken, error) {
+	// Generate random token
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+	tokenString := hex.EncodeToString(b)
+
+	// Set expiration based on type
+	var expiration time.Duration
+	switch tokenType {
+	case "email_verification":
+		expiration = 24 * time.Hour
+	case "password_reset":
+		expiration = 1 * time.Hour
+	default:
+		return nil, fmt.Errorf("invalid token type: %s", tokenType)
+	}
+
+	token := &VerificationToken{
+		ID:        primitive.NewObjectID(),
+		UserID:    userID,
+		Token:     tokenString,
+		Type:      tokenType,
+		ExpiresAt: time.Now().Add(expiration),
+		Used:      false,
+		CreatedAt: time.Now(),
+	}
+
+	_, err := db.Collection("verification_tokens").InsertOne(context.Background(), token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token: %w", err)
+	}
+
+	return token, nil
+}
+
+// VerifyToken verifies a token and marks it as used
+func VerifyToken(db *mongo.Database, tokenString string, tokenType string) (*VerificationToken, error) {
+	filter := bson.M{
+		"token":     tokenString,
+		"type":      tokenType,
+		"used":      false,
+		"expiresAt": bson.M{"$gt": time.Now()},
+	}
+
+	var token VerificationToken
+	err := db.Collection("verification_tokens").FindOne(context.Background(), filter).Decode(&token)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("invalid or expired token")
+		}
+		return nil, fmt.Errorf("failed to find token: %w", err)
+	}
+
+	// Mark token as used
+	_, err = db.Collection("verification_tokens").UpdateOne(
+		context.Background(),
+		bson.M{"_id": token.ID},
+		bson.M{"$set": bson.M{"used": true}},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mark token as used: %w", err)
+	}
+
+	return &token, nil
+}
+
+// VerifyUserEmail verifies a user's email address
+func (u *User) VerifyEmail(db *mongo.Database, token string) error {
+	// Verify the token
+	verificationToken, err := VerifyToken(db, token, "email_verification")
+	if err != nil {
+		return err
+	}
+
+	// Check if token belongs to this user
+	if verificationToken.UserID != u.ID {
+		return errors.New("token does not belong to this user")
+	}
+
+	// Update user as verified
+	_, err = db.Collection("users").UpdateOne(
+		context.Background(),
+		bson.M{"_id": u.ID},
+		bson.M{
+			"$set": bson.M{
+				"verified":  true,
+				"updatedAt": time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	u.Verified = true
+	u.UpdatedAt = time.Now()
+
+	return nil
+}
+
+// SendVerificationEmail creates a verification token and queues the email
+func (u *User) SendVerificationEmail(db *mongo.Database, emailService *EmailService) error {
+	if u.Verified {
+		return errors.New("user already verified")
+	}
+
+	// Create verification token
+	token, err := CreateVerificationToken(db, u.ID, "email_verification")
+	if err != nil {
+		return fmt.Errorf("failed to create verification token: %w", err)
+	}
+
+	// Queue verification email
+	err = emailService.QueueVerificationEmail(u, token.Token)
+	if err != nil {
+		return fmt.Errorf("failed to queue verification email: %w", err)
+	}
+
+	return nil
+}
+
+// processTemplate replaces template variables with actual values
+func processTemplate(template string, data map[string]string) string {
+	result := template
+	for key, value := range data {
+		placeholder := fmt.Sprintf("{{.%s}}", key)
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result
+}
+
+// Helper function to clean up expired tokens (run periodically)
+func CleanupExpiredTokens(db *mongo.Database) error {
+	filter := bson.M{
+		"$or": []bson.M{
+			{"expiresAt": bson.M{"$lt": time.Now()}},
+			{"used": true},
+		},
+	}
+
+	result, err := db.Collection("verification_tokens").DeleteMany(context.Background(), filter)
+	if err != nil {
+		return fmt.Errorf("failed to cleanup tokens: %w", err)
+	}
+
+	log.Infof("Cleaned up %d expired tokens", result.DeletedCount)
+	return nil
+}

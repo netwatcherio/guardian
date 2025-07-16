@@ -542,7 +542,6 @@ func (p *Probe) createReverseTrafficSimProbe(sourceProbe *Probe, sourceAgent Age
 			thisAgentHasServer = true
 			// Extract port from server configuration
 			if probe.Config.Target == nil {
-
 				jM, err := json.Marshal(probe)
 				if err != nil {
 					log.Error("error marshal target agent conf (%s) - %s ", err, string(jM))
