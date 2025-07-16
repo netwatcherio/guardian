@@ -960,7 +960,6 @@ type TrafficSimClientStats struct {
 	OutOfSequence  int       `json:"outOfSequence"`
 	ReportTime     time.Time `json:"reportTime"`
 	StdDevRTT      float64   `json:"stdDevRTT"`
-	Timestamp      time.Time `json:"timestamp"`
 	TotalPackets   int       `json:"totalPackets"`
 }
 
