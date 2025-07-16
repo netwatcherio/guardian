@@ -911,7 +911,7 @@ type HostMemoryInfo struct {
 	Metrics      map[string]uint64 `json:"raw,omitempty" bson:"metrics"`            // Other memory related metrics.
 }
 
-type TrafficSimClientStats struct {
+/*type TrafficSimClientStats struct {
 	AverageRTT       float64   `json:"averageRTT" bson:"averageRTT"`
 	DuplicatePackets int       `json:"duplicatePackets" bson:"duplicatePackets"`
 	LostPackets      int       `json:"lostPackets" bson:"lostPackets"`
@@ -921,6 +921,47 @@ type TrafficSimClientStats struct {
 	StdDevRTT        float64   `json:"stdDevRTT" bson:"stdDevRTT"`
 	TotalPackets     int       `json:"totalPackets" bson:"totalPackets"`
 	ReportTime       time.Time `json:"reportTime" bson:"reportTime"`
+}*/
+
+type TrafficSimClientStats struct {
+	AverageRTT       float64 `json:"averageRTT"`
+	DuplicatePackets int     `json:"duplicatePackets"`
+	Flows            map[string]struct {
+		BytesReceived int     `json:"bytesReceived"`
+		BytesSent     int     `json:"bytesSent"`
+		Direction     string  `json:"direction"`
+		Duration      float64 `json:"duration"`
+		JitterStats   struct {
+			Min    int `json:"min"`
+			Max    int `json:"max"`
+			Avg    int `json:"avg"`
+			StdDev int `json:"stdDev"`
+		} `json:"jitterStats"`
+		LossPercentage  int `json:"lossPercentage"`
+		PacketsLost     int `json:"packetsLost"`
+		PacketsReceived int `json:"packetsReceived"`
+		PacketsSent     int `json:"packetsSent"`
+		RttStats        struct {
+			Min    int `json:"min"`
+			Max    int `json:"max"`
+			Avg    int `json:"avg"`
+			StdDev int `json:"stdDev"`
+			P50    int `json:"p50"`
+			P95    int `json:"p95"`
+			P99    int `json:"p99"`
+		} `json:"rttStats"`
+		ThroughputRecv float64 `json:"throughputRecv"`
+		ThroughputSend float64 `json:"throughputSend"`
+	} `json:"flows"`
+	LossPercentage int       `json:"lossPercentage"`
+	LostPackets    int       `json:"lostPackets"`
+	MaxRTT         int       `json:"maxRTT"`
+	MinRTT         int       `json:"minRTT"`
+	OutOfSequence  int       `json:"outOfSequence"`
+	ReportTime     time.Time `json:"reportTime"`
+	StdDevRTT      float64   `json:"stdDevRTT"`
+	Timestamp      time.Time `json:"timestamp"`
+	TotalPackets   int       `json:"totalPackets"`
 }
 
 /*return map[string]interface{}{
